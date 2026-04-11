@@ -24,7 +24,7 @@ jobs:
           Copy-Item (Get-ChildItem sing-box-tmp -Recurse -Filter "sing-box.exe")[0].FullName -Destination StormV/sing-box.exe
 
       - name: Build
-        run: dotnet publish StormV/StormV.csproj -c Release -r win-x64 --self-contained false -o publish
+        run: dotnet publish StormV/StormV.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o publish
 
       - name: Copy sing-box to publish
         shell: pwsh
