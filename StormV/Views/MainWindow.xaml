@@ -190,7 +190,7 @@
                                                     <GradientStop Color="#3360A5FA" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
-                                            <TextBlock Text="{Binding Config.ProtocolLabel}"
+                                            <TextBlock Text="{Binding Config.ProtocolLabel, Mode=OneWay}"
                                                        FontSize="11"
                                                        FontWeight="Bold"
                                                        HorizontalAlignment="Center"
@@ -206,7 +206,7 @@
 
                                         <!-- Имя + хост -->
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Config.DisplayName}"
+                                            <TextBlock Text="{Binding Config.DisplayName, Mode=OneWay}"
                                                        FontWeight="Medium"
                                                        FontSize="14"
                                                        Foreground="{StaticResource SV.TextPrimaryBrush}"
@@ -256,7 +256,7 @@
                            Foreground="{StaticResource SV.TextSecondaryBrush}"
                            Margin="0,0,0,4">
                     <Run Text="Сервер: "/>
-                    <Run Text="{Binding SelectedServerVm.Config.DisplayName, FallbackValue='Не выбран'}"
+                    <Run Text="{Binding SelectedServerVm.Config.DisplayName, Mode=OneWay, FallbackValue='Не выбран'}"
                          Foreground="{StaticResource SV.TextPrimaryBrush}"/>
                 </TextBlock>
 
