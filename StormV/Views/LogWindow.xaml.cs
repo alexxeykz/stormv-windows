@@ -60,7 +60,7 @@ public partial class LogWindow : Window
         StatusText.Text = $"Записей: {_displayed.Count}  |  Всего: {Logger.Instance.GetAll().Count}";
     }
 
-    private void LevelFilter_Changed(object sender, SelectionChangedEventArgs e)
+    private void LevelFilter_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         _minLevel = LevelFilter.SelectedIndex switch
         {
@@ -73,7 +73,7 @@ public partial class LogWindow : Window
         Reload();
     }
 
-    private void SearchBox_Changed(object sender, TextChangedEventArgs e)
+    private void SearchBox_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
         _search = SearchBox.Text;
         Reload();
