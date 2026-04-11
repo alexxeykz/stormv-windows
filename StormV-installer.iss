@@ -27,6 +27,8 @@ Name: "desktopicon"; Description: "Создать значок на рабоче
 Source: "publish\StormV.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "publish\sing-box.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "publish\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "publish\*.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "publish\*.pdb"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\StormV"; Filename: "{app}\StormV.exe"
