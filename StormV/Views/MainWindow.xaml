@@ -1,0 +1,410 @@
+<Window x:Class="StormV.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:vm="clr-namespace:StormV.ViewModels"
+        xmlns:models="clr-namespace:StormV.Models"
+        Title="StormV"
+        Width="420" MinWidth="380"
+        Height="680" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource SV.BackgroundDeepBrush}"
+        TextElement.Foreground="{StaticResource SV.TextPrimaryBrush}"
+        TextElement.FontFamily="{materialDesign:MaterialDesignFont}"
+        Closing="Window_Closing">
+
+    <Window.Resources>
+        <!-- Конвертеры -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Стиль кнопки Подключить/Отключить -->
+        <Style x:Key="ConnectButtonStyle" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+            <Setter Property="Height" Value="56"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="CornerRadius" Value="28"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp6"/>
+        </Style>
+
+        <!-- Стиль элемента списка серверов -->
+        <Style x:Key="ServerItemStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FF1E1E35"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- Лого + заголовок -->
+            <RowDefinition Height="*"/>     <!-- Список серверов -->
+            <RowDefinition Height="Auto"/>  <!-- Кнопка Connect + статус -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══ HEADER: Логотип SV ═══════════════════════════════════════════ -->
+        <Border Grid.Row="0" Padding="24,28,24,16">
+            <StackPanel HorizontalAlignment="Center">
+
+                <!-- Лого SV -->
+                <Border Width="100" Height="100"
+                        CornerRadius="24"
+                        Margin="0,0,0,14">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FF1A1A2E" Offset="0"/>
+                            <GradientStop Color="#FF16213E" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.Effect>
+                        <DropShadowEffect Color="#FF7B61FF" BlurRadius="24" ShadowDepth="0" Opacity="0.6"/>
+                    </Border.Effect>
+                    <TextBlock Text="SV"
+                               FontSize="44"
+                               FontWeight="Black"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center">
+                        <TextBlock.Foreground>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#FF7B61FF" Offset="0"/>
+                                <GradientStop Color="#FFA78BFA" Offset="0.5"/>
+                                <GradientStop Color="#FF60A5FA" Offset="1"/>
+                            </LinearGradientBrush>
+                        </TextBlock.Foreground>
+                    </TextBlock>
+                </Border>
+
+                <!-- Название -->
+                <TextBlock Text="StormV"
+                           FontSize="26"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"
+                           Foreground="{StaticResource SV.TextPrimaryBrush}"/>
+                <TextBlock Text="Безопасный VPN"
+                           FontSize="13"
+                           HorizontalAlignment="Center"
+                           Foreground="{StaticResource SV.TextSecondaryBrush}"
+                           Margin="0,2,0,0"/>
+
+                <!-- Кнопки в правом верхнем углу -->
+                <StackPanel HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,-80,0,0"
+                            Orientation="Horizontal">
+                    <Button Style="{StaticResource MaterialDesignIconButton}"
+                            Click="LogButton_Click"
+                            ToolTip="Логи подключения"
+                            Foreground="{StaticResource SV.TextSecondaryBrush}">
+                        <materialDesign:PackIcon Kind="FormatListText" Width="20" Height="20"/>
+                    </Button>
+                    <Button Style="{StaticResource MaterialDesignIconButton}"
+                            Click="SettingsButton_Click"
+                            ToolTip="Настройки"
+                            Foreground="{StaticResource SV.TextSecondaryBrush}">
+                        <materialDesign:PackIcon Kind="Cog" Width="20" Height="20"/>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ SERVERS LIST ══════════════════════════════════════════════════ -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}"
+                Margin="16,0,16,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Заголовок + кнопка + -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <TextBlock Text="Серверы"
+                               FontSize="14"
+                               FontWeight="Medium"
+                               Foreground="{StaticResource SV.TextSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                    <Button HorizontalAlignment="Right"
+                            Style="{StaticResource MaterialDesignIconButton}"
+                            ToolTip="Добавить сервер"
+                            Command="{Binding AddServerCommand}"
+                            Foreground="{StaticResource SV.AccentPurpleBrush}"
+                            Cursor="Hand">
+                        <materialDesign:PackIcon Kind="Plus" Width="22" Height="22"/>
+                    </Button>
+                </Grid>
+
+                <!-- Пустой список -->
+                <StackPanel Grid.Row="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding Servers.Count, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+                    <materialDesign:PackIcon Kind="ServerOff"
+                                             Width="48" Height="48"
+                                             Foreground="#44FFFFFF"
+                                             HorizontalAlignment="Center"/>
+                    <TextBlock Text="Нет серверов"
+                               Foreground="{StaticResource SV.TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               Margin="0,8,0,4"/>
+                    <TextBlock Text="Нажмите + чтобы добавить"
+                               Foreground="#44FFFFFF"
+                               FontSize="12"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Список серверов -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Servers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource ServerItemStyle}">
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding DataContext.SelectServerCommand,
+                                                                RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      CommandParameter="{Binding}"/>
+                                    </Border.InputBindings>
+                                    <!-- Выделение выбранного -->
+                                    <Border.Effect>
+                                        <DropShadowEffect
+                                            Color="#FF7B61FF" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Протокол-бейдж -->
+                                        <Border Grid.Column="0"
+                                                Width="48" Height="32"
+                                                CornerRadius="8"
+                                                Margin="0,0,12,0">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#337B61FF" Offset="0"/>
+                                                    <GradientStop Color="#3360A5FA" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <TextBlock Text="{Binding Config.ProtocolLabel}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Foreground>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                        <GradientStop Color="#FF7B61FF" Offset="0"/>
+                                                        <GradientStop Color="#FF60A5FA" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+                                        </Border>
+
+                                        <!-- Имя + хост -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Config.DisplayName}"
+                                                       FontWeight="Medium"
+                                                       FontSize="14"
+                                                       Foreground="{StaticResource SV.TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Config.Host, Converter={StaticResource IpMask}}"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource SV.TextSecondaryBrush}"/>
+                                        </StackPanel>
+
+                                        <!-- Пинг -->
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Ping}"
+                                                   FontSize="11"
+                                                   VerticalAlignment="Center"
+                                                   Margin="8,0,4,0"
+                                                   Foreground="{StaticResource SV.TextSecondaryBrush}"/>
+
+                                        <!-- Кнопка удалить -->
+                                        <Button Grid.Column="3"
+                                                Style="{StaticResource MaterialDesignIconButton}"
+                                                Command="{Binding DataContext.RemoveServerCommand,
+                                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Foreground="#55FFFFFF"
+                                                Width="32" Height="32"
+                                                Padding="4"
+                                                ToolTip="Удалить">
+                                            <materialDesign:PackIcon Kind="TrashCanOutline" Width="16" Height="16"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- ═══ CONNECT AREA ══════════════════════════════════════════════════ -->
+        <Border Grid.Row="2"
+                Style="{StaticResource CardStyle}"
+                Margin="16,0,16,20">
+            <StackPanel>
+
+                <!-- Выбранный сервер -->
+                <TextBlock FontSize="13"
+                           Foreground="{StaticResource SV.TextSecondaryBrush}"
+                           Margin="0,0,0,4">
+                    <Run Text="Сервер: "/>
+                    <Run Text="{Binding SelectedServerVm.Config.DisplayName, FallbackValue='Не выбран'}"
+                         Foreground="{StaticResource SV.TextPrimaryBrush}"/>
+                </TextBlock>
+
+                <!-- Кнопка подключения -->
+                <Button Style="{StaticResource ConnectButtonStyle}"
+                        Command="{Binding ToggleConnectionCommand}"
+                        IsEnabled="{Binding CanConnect}"
+                        Margin="0,8,0,12">
+                    <Button.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#FF7B61FF" Offset="0"/>
+                            <GradientStop Color="#FF60A5FA" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Button.Background>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="VpnLock" Width="22" Height="22"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,10,0"/>
+                        <TextBlock Text="{Binding ConnectButtonText}"
+                                   VerticalAlignment="Center"
+                                   FontSize="16"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Индикатор статуса -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <!-- Кружок статуса -->
+                    <Ellipse Width="10" Height="10"
+                             VerticalAlignment="Center"
+                             Margin="0,0,8,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#FF6B7280"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}"
+                                                 Value="{x:Static models:ConnectionStatus.Connected}">
+                                        <Setter Property="Fill" Value="{StaticResource SV.SuccessBrush}"/>
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard RepeatBehavior="Forever">
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                     From="1" To="0.4" Duration="0:0:1"
+                                                                     AutoReverse="True"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Status}"
+                                                 Value="{x:Static models:ConnectionStatus.Connecting}">
+                                        <Setter Property="Fill" Value="#FFFBBF24"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Status}"
+                                                 Value="{x:Static models:ConnectionStatus.Error}">
+                                        <Setter Property="Fill" Value="{StaticResource SV.ErrorBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+
+                    <!-- Текст статуса -->
+                    <TextBlock Text="{Binding StatusText}"
+                               FontSize="14"
+                               FontWeight="Medium"
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource SV.TextSecondaryBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}"
+                                                 Value="{x:Static models:ConnectionStatus.Connected}">
+                                        <Setter Property="Foreground" Value="{StaticResource SV.SuccessBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Status}"
+                                                 Value="{x:Static models:ConnectionStatus.Error}">
+                                        <Setter Property="Foreground" Value="{StaticResource SV.ErrorBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!-- Спиннер при подключении -->
+                    <materialDesign:PackIcon Kind="Loading"
+                                             Width="18" Height="18"
+                                             Margin="10,0,0,0"
+                                             VerticalAlignment="Center"
+                                             Foreground="#FFFBBF24">
+                        <materialDesign:PackIcon.Style>
+                            <Style TargetType="materialDesign:PackIcon">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}"
+                                                 Value="{x:Static models:ConnectionStatus.Connecting}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </materialDesign:PackIcon.Style>
+                        <materialDesign:PackIcon.RenderTransform>
+                            <RotateTransform CenterX="9" CenterY="9"/>
+                        </materialDesign:PackIcon.RenderTransform>
+                        <materialDesign:PackIcon.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation
+                                            Storyboard.TargetProperty="RenderTransform.Angle"
+                                            From="0" To="360" Duration="0:0:1"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </materialDesign:PackIcon.Triggers>
+                    </materialDesign:PackIcon>
+                </StackPanel>
+
+                <!-- Сообщение об ошибке -->
+                <Border Margin="0,10,0,0"
+                        Background="#33FF4444"
+                        CornerRadius="8"
+                        Padding="12,8">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Status}"
+                                             Value="{x:Static models:ConnectionStatus.Error}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="AlertCircleOutline"
+                                                  Width="18" Height="18"
+                                                  Foreground="{StaticResource SV.ErrorBrush}"
+                                                  VerticalAlignment="Top"
+                                                  Margin="0,1,8,0"/>
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Foreground="{StaticResource SV.ErrorBrush}"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </Border>
+
+    </Grid>
+</Window>
