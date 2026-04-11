@@ -141,10 +141,9 @@ public class SingBoxService
                 new
                 {
                     type = "mixed",
+                    tag = "mixed-in",
                     listen = "127.0.0.1",
-                    listen_port = MixedPort,
-                    sniff = true,
-                    sniff_override_destination = false
+                    listen_port = MixedPort
                 }
             },
             outbounds = new object[]
@@ -157,6 +156,8 @@ public class SingBoxService
             {
                 rules = new object[]
                 {
+                    // sniff перенесён из inbound в route rules (sing-box 1.11+)
+                    new { action = "sniff" },
                     new
                     {
                         ip_cidr = new[] {
