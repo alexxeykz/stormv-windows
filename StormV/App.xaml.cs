@@ -8,7 +8,7 @@ public partial class App : Application
         DispatcherUnhandledException += (_, ex) =>
         {
             MessageBox.Show(
-                $"Ошибка запуска:\n\n{ex.Exception.GetType().Name}\n{ex.Exception.Message}\n\n{ex.Exception.StackTrace}",
+                FormatException(ex.Exception),
                 "StormV — Ошибка",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -17,13 +17,27 @@ public partial class App : Application
 
         AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
         {
-            MessageBox.Show(
-                $"Критическая ошибка:\n\n{ex.ExceptionObject}",
-                "StormV — Критическая ошибка",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            var msg = ex.ExceptionObject is Exception e ? FormatException(e) : ex.ExceptionObject?.ToString() ?? "?";
+            MessageBox.Show(msg, "StormV — Критическая ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         };
 
         base.OnStartup(e);
+    }
+
+    private static string FormatException(Exception ex)
+    {
+        var sb = new System.Text.StringBuilder();
+        var e = ex;
+        int depth = 0;
+        while (e != null && depth < 5)
+        {
+            if (depth > 0) sb.AppendLine("\n─── Inner Exception ───");
+            sb.AppendLine(e.GetType().FullName);
+            sb.AppendLine(e.Message);
+            if (depth == 0) sb.AppendLine("\n" + e.StackTrace);
+            e = e.InnerException;
+            depth++;
+        }
+        return sb.ToString();
     }
 }
