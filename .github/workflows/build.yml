@@ -30,8 +30,14 @@ jobs:
         shell: pwsh
         run: Copy-Item StormV/sing-box.exe publish/
 
-      - name: Upload artifact
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $inno = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          & $inno "StormV-installer.iss"
+
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: StormV-Windows
-          path: publish/
+          name: StormV-Setup
+          path: Output/StormV-Setup.exe
