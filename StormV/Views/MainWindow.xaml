@@ -97,7 +97,7 @@
                             Click="LogButton_Click"
                             ToolTip="Логи подключения"
                             Foreground="{StaticResource SV.TextSecondaryBrush}">
-                        <materialDesign:PackIcon Kind="FormatListText" Width="20" Height="20"/>
+                        <materialDesign:PackIcon Kind="FormatListBulleted" Width="20" Height="20"/>
                     </Button>
                     <Button Style="{StaticResource MaterialDesignIconButton}"
                             Click="SettingsButton_Click"
@@ -272,7 +272,7 @@
                         </LinearGradientBrush>
                     </Button.Background>
                     <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="VpnLock" Width="22" Height="22"
+                        <materialDesign:PackIcon Kind="Lock" Width="22" Height="22"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,10,0"/>
                         <TextBlock Text="{Binding ConnectButtonText}"
