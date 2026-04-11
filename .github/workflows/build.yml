@@ -1,0 +1,37 @@
+name: Build StormV Windows
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download sing-box for Windows
+        shell: pwsh
+        run: |
+          $latest = (Invoke-RestMethod "https://api.github.com/repos/SagerNet/sing-box/releases/latest").tag_name -replace 'v',''
+          Invoke-WebRequest "https://github.com/SagerNet/sing-box/releases/download/v$latest/sing-box-$latest-windows-amd64.zip" -OutFile sing-box.zip
+          Expand-Archive sing-box.zip -DestinationPath sing-box-tmp
+          Copy-Item (Get-ChildItem sing-box-tmp -Recurse -Filter "sing-box.exe")[0].FullName -Destination StormV/sing-box.exe
+
+      - name: Build
+        run: dotnet publish StormV/StormV.csproj -c Release -r win-x64 --self-contained false -o publish
+
+      - name: Copy sing-box to publish
+        shell: pwsh
+        run: Copy-Item StormV/sing-box.exe publish/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StormV-Windows
+          path: publish/
