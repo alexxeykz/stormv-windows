@@ -12,6 +12,9 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
+; Удалять оставшиеся файлы при деинсталляции
+Uninstallable=yes
+CreateUninstallRegKey=yes
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -34,4 +37,11 @@ Name: "{autodesktop}\StormV"; Filename: "{app}\StormV.exe"; Tasks: desktopicon
 Filename: "{app}\StormV.exe"; Description: "Запустить StormV"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{app}\StormV.exe"; Parameters: "--quit"; Flags: runhidden; RunOnceId: "QuitStormV"
+; Завершаем процессы перед удалением
+Filename: "taskkill.exe"; Parameters: "/F /IM StormV.exe"; Flags: runhidden; RunOnceId: "KillStormV"
+Filename: "taskkill.exe"; Parameters: "/F /IM sing-box.exe"; Flags: runhidden; RunOnceId: "KillSingBox"
+
+[UninstallDelete]
+; Удаляем конфиги, логи и все пользовательские данные
+Type: filesandordirs; Name: "{localappdata}\StormV"
+Type: filesandordirs; Name: "{app}"
