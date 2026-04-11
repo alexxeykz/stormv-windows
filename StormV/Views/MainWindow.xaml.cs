@@ -19,9 +19,16 @@ public partial class MainWindow : Window
     private void OnAddServerRequested()
     {
         var dialog = new AddServerDialog { Owner = this };
-        if (dialog.ShowDialog() == true && dialog.Result != null)
+
+        dialog.ViewModel.SubscriptionLoaded += servers =>
         {
-            _vm.AddServerConfig(dialog.Result);
+            Application.Current.Dispatcher.Invoke(() => _vm.AddSubscriptionServers(servers));
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            if (dialog.Result != null)
+                _vm.AddServerConfig(dialog.Result);
         }
     }
 

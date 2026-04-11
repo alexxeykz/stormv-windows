@@ -92,6 +92,19 @@ public partial class MainViewModel : ObservableObject
         _ = PingSingleServerAsync(vm);
     }
 
+    public void AddSubscriptionServers(List<ServerConfig> servers)
+    {
+        foreach (var server in servers)
+        {
+            var vm = new ServerViewModel(server);
+            Servers.Add(vm);
+            _ = PingSingleServerAsync(vm);
+        }
+        ConfigService.SaveServers(Servers.Select(v => v.Config));
+        SelectedServerVm ??= Servers.FirstOrDefault();
+        Logger.Instance.Info("UI", $"Подписка: добавлено {servers.Count} серверов");
+    }
+
     [RelayCommand]
     private void RemoveServer(ServerViewModel? vm)
     {

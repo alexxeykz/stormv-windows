@@ -6,6 +6,7 @@ namespace StormV.Views;
 public partial class AddServerDialog : Window
 {
     private readonly AddServerViewModel _vm;
+    public AddServerViewModel ViewModel => _vm;
     public ServerConfig? Result => _vm.Result;
 
     public AddServerDialog()
