@@ -11,10 +11,12 @@ public partial class LogWindow : Window
     private readonly ObservableCollection<LogEntry> _displayed = new();
     private LogLevel _minLevel = LogLevel.Info;
     private string _search = string.Empty;
+    private bool _ready = false;
 
     public LogWindow()
     {
         InitializeComponent();
+        _ready = true;
         LogList.ItemsSource = _displayed;
         LogFilePathRun.Text = Logger.Instance.LogFilePath;
 
@@ -62,6 +64,7 @@ public partial class LogWindow : Window
 
     private void LevelFilter_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        if (!_ready) return;
         _minLevel = LevelFilter.SelectedIndex switch
         {
             0 => LogLevel.Debug,
@@ -75,6 +78,7 @@ public partial class LogWindow : Window
 
     private void SearchBox_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
+        if (!_ready) return;
         _search = SearchBox.Text;
         Reload();
     }
