@@ -9,6 +9,7 @@ public class SingBoxService
     private Process? _process;
     private readonly string _singBoxPath;
     private readonly string _configPath;
+    private bool _intentionalStop;
     public const int MixedPort = 2080;
 
     public event Action<string>? LogReceived;
@@ -26,6 +27,7 @@ public class SingBoxService
 
     public async Task<(bool success, string error)> StartAsync(ServerConfig server)
     {
+        _intentionalStop = false;
         if (IsRunning) Stop();
 
         Logger.Instance.Info("SingBox", $"Запуск: {server.DisplayName} [{server.Protocol}]");
@@ -71,6 +73,7 @@ public class SingBoxService
             };
             _process.Exited += (_, _) =>
             {
+                if (_intentionalStop) return;
                 Logger.Instance.Warning("SingBox", "Процесс sing-box завершился неожиданно");
                 StatusChanged?.Invoke(false, "sing-box завершился неожиданно");
             };
@@ -101,6 +104,7 @@ public class SingBoxService
 
     public void Stop()
     {
+        _intentionalStop = true;
         Logger.Instance.Info("SingBox", "Остановка sing-box...");
         try
         {
