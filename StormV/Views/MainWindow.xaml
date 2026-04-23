@@ -260,11 +260,20 @@
                          Foreground="{StaticResource SV.TextPrimaryBrush}"/>
                 </TextBlock>
 
+                <!-- Кнопки подключения -->
+                <Grid Margin="0,8,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
                 <!-- Кнопка подключения -->
-                <Button Style="{StaticResource ConnectButtonStyle}"
+                <Button Grid.Column="0"
+                        Style="{StaticResource ConnectButtonStyle}"
                         Command="{Binding ToggleConnectionCommand}"
                         IsEnabled="{Binding CanConnect}"
-                        Margin="0,8,0,12">
+                        Margin="0">
                     <Button.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                             <GradientStop Color="#FF7B61FF" Offset="0"/>
@@ -281,6 +290,30 @@
                                    FontWeight="Bold"/>
                     </StackPanel>
                 </Button>
+
+                <!-- Кнопка Авто -->
+                <Button Grid.Column="2"
+                        Command="{Binding AutoConnectCommand}"
+                        IsEnabled="{Binding CanAutoConnect}"
+                        ToolTip="Протестировать все серверы и подключиться к лучшему"
+                        Width="72" Height="56"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        materialDesign:ButtonAssist.CornerRadius="16">
+                    <Button.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#FF7B61FF" Offset="0"/>
+                            <GradientStop Color="#FF60A5FA" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Button.Background>
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="AutoFix" Width="20" Height="20"
+                                                  HorizontalAlignment="Center"/>
+                        <TextBlock Text="Авто" FontSize="11" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                </Grid>
 
                 <!-- Индикатор статуса -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">

@@ -132,6 +132,52 @@ public partial class MainViewModel : ObservableObject
         vm.Ping = ms.HasValue ? $"{ms} ms" : "—";
     }
 
+    // ── Auto-select ───────────────────────────────────────────────────────────
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAutoConnect))]
+    private bool _isTesting = false;
+
+    public bool CanAutoConnect => !IsTesting && Servers.Count > 0 &&
+                                  Status is ConnectionStatus.Disconnected or ConnectionStatus.Error;
+
+    [RelayCommand]
+    private async Task AutoConnect()
+    {
+        if (IsConnected) DisconnectInternal();
+
+        IsTesting = true;
+        ErrorMessage = string.Empty;
+        Logger.Instance.Info("UI", "Поиск лучшего протокола...");
+
+        var configs = Servers.Select(v => v.Config).ToList();
+        var results = await ProtocolSelector.TestAllAsync(configs);
+
+        // обновляем ping в UI по результатам теста
+        foreach (var r in results)
+        {
+            var vm = Servers.FirstOrDefault(v => v.Config.Id == r.Server.Id);
+            if (vm != null) vm.Ping = r.IsAvailable ? $"{r.LatencyMs} ms" : "—";
+        }
+
+        var best = results.FirstOrDefault(r => r.IsAvailable);
+        IsTesting = false;
+
+        if (best == null)
+        {
+            ErrorMessage = "Нет доступных серверов";
+            Status = ConnectionStatus.Error;
+            Logger.Instance.Error("UI", "AutoConnect: нет доступных серверов");
+            return;
+        }
+
+        var bestVm = Servers.First(v => v.Config.Id == best.Server.Id);
+        SelectedServerVm = bestVm;
+        Logger.Instance.Info("UI", $"Лучший: {best.Server.DisplayName} ({best.LatencyMs} ms)");
+
+        await ConnectToAsync(bestVm.Config);
+    }
+
     // ── Connect ───────────────────────────────────────────────────────────────
 
     [RelayCommand]
@@ -142,16 +188,18 @@ public partial class MainViewModel : ObservableObject
             DisconnectInternal();
             return;
         }
-
         if (SelectedServerVm == null) return;
-
         Logger.Instance.Info("UI", $"Пользователь нажал ПОДКЛЮЧИТЬ → {SelectedServerVm.Config.DisplayName}");
+        await ConnectToAsync(SelectedServerVm.Config);
+    }
 
+    private async Task ConnectToAsync(ServerConfig config)
+    {
         Status = ConnectionStatus.Connecting;
         ErrorMessage = string.Empty;
         LogText = string.Empty;
 
-        var (success, error) = await _singBox.StartAsync(SelectedServerVm.Config);
+        var (success, error) = await _singBox.StartAsync(config);
 
         if (success)
         {
