@@ -156,8 +156,8 @@ public class SingBoxService
             {
                 rules = new object[]
                 {
-                    // sniff перенесён из inbound в route rules (sing-box 1.11+)
                     new { action = "sniff" },
+                    // Локальные адреса — напрямую
                     new
                     {
                         ip_cidr = new[] {
@@ -165,9 +165,32 @@ public class SingBoxService
                             "127.0.0.0/8", "169.254.0.0/16", "fc00::/7"
                         },
                         outbound = "direct"
+                    },
+                    // Telegram — через прокси
+                    new
+                    {
+                        domain_suffix = new[] { "telegram.org", "t.me", "telegram.me", "telesco.pe" },
+                        outbound = "proxy"
+                    },
+                    new
+                    {
+                        ip_cidr = new[] {
+                            "91.108.0.0/16", "91.105.192.0/23",
+                            "149.154.160.0/20", "185.76.151.0/24", "95.161.76.0/24"
+                        },
+                        outbound = "proxy"
+                    },
+                    // YouTube — через прокси
+                    new
+                    {
+                        domain_suffix = new[] {
+                            "youtube.com", "youtu.be", "googlevideo.com",
+                            "ytimg.com", "ggpht.com", "youtube-nocookie.com"
+                        },
+                        outbound = "proxy"
                     }
                 },
-                final = "proxy",
+                final = "direct",
                 auto_detect_interface = true
             }
         };
