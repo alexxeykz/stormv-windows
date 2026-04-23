@@ -7,6 +7,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SingBoxService _singBox = new();
     private AppSettings _settings = ConfigService.LoadSettings();
     private CancellationTokenSource? _monitorCts;
+    private ServerConfig? _lastWorkingServer;
 
     [ObservableProperty]
     private ObservableCollection<ServerViewModel> _servers = new();
@@ -212,6 +213,23 @@ public partial class MainViewModel : ObservableObject
         var available = results.Where(r => r.IsAvailable).ToList();
         if (available.Count == 0)
         {
+            // Fallback: пробуем последний рабочий сервер если пинг упал из-за DPI
+            if (_lastWorkingServer != null)
+            {
+                Logger.Instance.Warning("UI", "Пинг не прошёл — пробуем последний рабочий сервер...");
+                var fallbackVm = Servers.FirstOrDefault(v => v.Config.Id == _lastWorkingServer.Id);
+                if (fallbackVm != null)
+                {
+                    SelectedServerVm = fallbackVm;
+                    await ConnectToAsync(_lastWorkingServer);
+                    if (Status == ConnectionStatus.Connected)
+                    {
+                        var ok = await HealthChecker.IsWorkingAsync();
+                        if (ok) { StartMonitor(); return; }
+                        DisconnectInternal();
+                    }
+                }
+            }
             ErrorMessage = "Нет доступных серверов";
             Status = ConnectionStatus.Error;
             Logger.Instance.Error("UI", "AutoConnect: нет доступных серверов");
@@ -232,6 +250,7 @@ public partial class MainViewModel : ObservableObject
             var ok = await HealthChecker.IsWorkingAsync();
             if (ok)
             {
+                _lastWorkingServer = candidate.Server;
                 Logger.Instance.Info("Health", $"Работает: {candidate.Server.DisplayName}");
                 StartMonitor();
                 return;
