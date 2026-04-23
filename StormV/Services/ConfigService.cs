@@ -62,5 +62,31 @@ public class ConfigService
         }
     }
 
+    private static readonly string _settingsFile = Path.Combine(_configDir, "settings.json");
+
+    public static AppSettings LoadSettings()
+    {
+        try
+        {
+            if (!File.Exists(_settingsFile)) return new();
+            var json = File.ReadAllText(_settingsFile);
+            return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new();
+        }
+        catch { return new(); }
+    }
+
+    public static void SaveSettings(AppSettings settings)
+    {
+        try
+        {
+            Directory.CreateDirectory(_configDir);
+            File.WriteAllText(_settingsFile, JsonSerializer.Serialize(settings, _jsonOptions));
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.Error("Config", $"Ошибка сохранения настроек: {ex.Message}");
+        }
+    }
+
     public static string ConfigDir => _configDir;
 }

@@ -9,6 +9,9 @@ public class ServerConfig
     public int Port { get; set; }
     public string RawUrl { get; set; } = string.Empty;
 
+    // URL подписки, из которой добавлен сервер (пусто — если добавлен вручную)
+    public string SubscriptionUrl { get; set; } = string.Empty;
+
     // VLESS / VMess
     public string Uuid { get; set; } = string.Empty;
     public string Flow { get; set; } = string.Empty;

@@ -5,6 +5,7 @@ namespace StormV.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly SingBoxService _singBox = new();
+    private AppSettings _settings = ConfigService.LoadSettings();
 
     [ObservableProperty]
     private ObservableCollection<ServerViewModel> _servers = new();
@@ -92,8 +93,23 @@ public partial class MainViewModel : ObservableObject
         _ = PingSingleServerAsync(vm);
     }
 
-    public void AddSubscriptionServers(List<ServerConfig> servers)
+    public void AddSubscriptionServers(List<ServerConfig> servers, string subscriptionUrl = "")
     {
+        // Помечаем откуда сервер и удаляем старые серверы этой подписки
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+        {
+            var old = Servers.Where(v => v.Config.SubscriptionUrl == subscriptionUrl).ToList();
+            foreach (var v in old) Servers.Remove(v);
+
+            foreach (var s in servers) s.SubscriptionUrl = subscriptionUrl;
+
+            if (!_settings.SubscriptionUrls.Contains(subscriptionUrl))
+            {
+                _settings.SubscriptionUrls.Add(subscriptionUrl);
+                ConfigService.SaveSettings(_settings);
+            }
+        }
+
         foreach (var server in servers)
         {
             var vm = new ServerViewModel(server);
@@ -103,6 +119,37 @@ public partial class MainViewModel : ObservableObject
         ConfigService.SaveServers(Servers.Select(v => v.Config));
         SelectedServerVm ??= Servers.FirstOrDefault();
         Logger.Instance.Info("UI", $"Подписка: добавлено {servers.Count} серверов");
+    }
+
+    // ── Refresh subscriptions ─────────────────────────────────────────────────
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSubscriptions))]
+    private bool _isRefreshing = false;
+
+    public bool HasSubscriptions => _settings.SubscriptionUrls.Count > 0;
+
+    [RelayCommand]
+    private async Task RefreshSubscriptions()
+    {
+        if (_settings.SubscriptionUrls.Count == 0) return;
+
+        IsRefreshing = true;
+        Logger.Instance.Info("UI", $"Обновление {_settings.SubscriptionUrls.Count} подписок...");
+
+        foreach (var url in _settings.SubscriptionUrls.ToList())
+        {
+            var (servers, error) = await SubscriptionService.FetchAsync(url);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Logger.Instance.Error("UI", $"Ошибка обновления подписки: {error}");
+                continue;
+            }
+            AddSubscriptionServers(servers, url);
+        }
+
+        IsRefreshing = false;
+        Logger.Instance.Info("UI", "Подписки обновлены");
     }
 
     [RelayCommand]

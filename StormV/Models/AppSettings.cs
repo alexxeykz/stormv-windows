@@ -7,6 +7,9 @@ public class AppSettings
     public bool AutoConnectOnStart { get; set; } = false;
     public string LastSelectedServerId { get; set; } = string.Empty;
 
+    // Сохранённые URL подписок
+    public List<string> SubscriptionUrls { get; set; } = new();
+
     // Bypass: приложения/IP которые не идут через VPN
     public List<string> BypassList { get; set; } = new()
     {

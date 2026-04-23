@@ -20,9 +20,9 @@ public partial class MainWindow : Window
     {
         var dialog = new AddServerDialog { Owner = this };
 
-        dialog.ViewModel.SubscriptionLoaded += servers =>
+        dialog.ViewModel.SubscriptionLoaded += (servers, url) =>
         {
-            Application.Current.Dispatcher.Invoke(() => _vm.AddSubscriptionServers(servers));
+            Application.Current.Dispatcher.Invoke(() => _vm.AddSubscriptionServers(servers, url));
         };
 
         if (dialog.ShowDialog() == true)

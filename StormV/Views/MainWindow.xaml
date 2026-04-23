@@ -94,6 +94,13 @@
                             Margin="0,-80,0,0"
                             Orientation="Horizontal">
                     <Button Style="{StaticResource MaterialDesignIconButton}"
+                            Command="{Binding RefreshSubscriptionsCommand}"
+                            IsEnabled="{Binding HasSubscriptions}"
+                            ToolTip="Обновить подписки"
+                            Foreground="{StaticResource SV.TextSecondaryBrush}">
+                        <materialDesign:PackIcon Kind="Refresh" Width="20" Height="20"/>
+                    </Button>
+                    <Button Style="{StaticResource MaterialDesignIconButton}"
                             Click="LogButton_Click"
                             ToolTip="Логи подключения"
                             Foreground="{StaticResource SV.TextSecondaryBrush}">

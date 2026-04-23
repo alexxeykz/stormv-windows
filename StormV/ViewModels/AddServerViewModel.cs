@@ -17,7 +17,7 @@ public partial class AddServerViewModel : ObservableObject
     public bool Confirmed { get; private set; }
 
     public event Action? CloseRequested;
-    public event Action<List<ServerConfig>>? SubscriptionLoaded;
+    public event Action<List<ServerConfig>, string>? SubscriptionLoaded;
 
     [RelayCommand]
     private void PasteFromClipboard()
@@ -77,7 +77,7 @@ public partial class AddServerViewModel : ObservableObject
 
         Results = servers;
         Confirmed = true;
-        SubscriptionLoaded?.Invoke(servers);
+        SubscriptionLoaded?.Invoke(servers, Url);
         CloseRequested?.Invoke();
     }
 
