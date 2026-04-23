@@ -134,6 +134,16 @@
                 </Button>
             </Grid>
 
+            <!-- Разделитель и кнопка выхода -->
+            <Separator Margin="0,20,0,12" Opacity="0.2"/>
+            <Button Content="Выйти из приложения"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Command="{Binding ExitCommand}"
+                    HorizontalAlignment="Center"
+                    Height="40"
+                    Foreground="{StaticResource SV.ErrorBrush}"
+                    BorderBrush="{StaticResource SV.ErrorBrush}"/>
+
         </StackPanel>
     </Border>
 </Window>

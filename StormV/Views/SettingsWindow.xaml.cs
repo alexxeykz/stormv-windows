@@ -10,5 +10,6 @@ public partial class SettingsWindow : Window
         var vm = new SettingsViewModel();
         DataContext = vm;
         vm.CloseRequested += () => Close();
+        vm.ExitRequested += () => ((App)Application.Current).Exit();
     }
 }

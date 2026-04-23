@@ -51,6 +51,12 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
+        if (!App.IsExiting)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
         _vm.OnClosing();
     }
 }

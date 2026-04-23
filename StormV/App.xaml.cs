@@ -2,9 +2,12 @@ namespace StormV;
 
 public partial class App : Application
 {
+    private System.Windows.Forms.NotifyIcon? _trayIcon;
+
+    public static bool IsExiting { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
-        // Перехватываем все необработанные исключения
         DispatcherUnhandledException += (_, ex) =>
         {
             var msg = FormatException(ex.Exception);
@@ -25,6 +28,51 @@ public partial class App : Application
         };
 
         base.OnStartup(e);
+        InitTrayIcon();
+    }
+
+    private void InitTrayIcon()
+    {
+        var icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!)
+                   ?? System.Drawing.SystemIcons.Application;
+
+        var menu = new System.Windows.Forms.ContextMenuStrip();
+        menu.Items.Add("Показать StormV", null, (_, _) => ShowMainWindow());
+        menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+        menu.Items.Add("Выйти", null, (_, _) => Exit());
+
+        _trayIcon = new System.Windows.Forms.NotifyIcon
+        {
+            Icon = icon,
+            Text = "StormV",
+            Visible = true,
+            ContextMenuStrip = menu
+        };
+        _trayIcon.DoubleClick += (_, _) => ShowMainWindow();
+    }
+
+    private static void ShowMainWindow()
+    {
+        var window = Current.MainWindow;
+        if (window == null) return;
+        window.Show();
+        if (window.WindowState == WindowState.Minimized)
+            window.WindowState = WindowState.Normal;
+        window.Activate();
+    }
+
+    public void Exit()
+    {
+        IsExiting = true;
+        _trayIcon?.Dispose();
+        _trayIcon = null;
+        Shutdown();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _trayIcon?.Dispose();
+        base.OnExit(e);
     }
 
     private static string ErrorLogPath =>

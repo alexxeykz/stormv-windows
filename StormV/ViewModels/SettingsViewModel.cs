@@ -11,6 +11,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _proxyDomainsText;
 
     public event Action? CloseRequested;
+    public event Action? ExitRequested;
 
     public SettingsViewModel()
     {
@@ -49,6 +50,9 @@ public partial class SettingsViewModel : ObservableObject
 
     [RelayCommand]
     private void Cancel() => CloseRequested?.Invoke();
+
+    [RelayCommand]
+    private void Exit() => ExitRequested?.Invoke();
 
     [RelayCommand]
     private void ResetDefaults()
