@@ -210,34 +210,20 @@ public partial class MainViewModel : ObservableObject
 
         IsTesting = false;
 
+        // Сначала серверы с успешным пингом, потом без пинга (DPI мог заблокировать)
         var available = results.Where(r => r.IsAvailable).ToList();
-        if (available.Count == 0)
+        var unavailable = results.Where(r => !r.IsAvailable).ToList();
+        var allToTry = available.Concat(unavailable).ToList();
+
+        if (allToTry.Count == 0)
         {
-            // Fallback: пробуем последний рабочий сервер если пинг упал из-за DPI
-            if (_lastWorkingServer != null)
-            {
-                Logger.Instance.Warning("UI", "Пинг не прошёл — пробуем последний рабочий сервер...");
-                var fallbackVm = Servers.FirstOrDefault(v => v.Config.Id == _lastWorkingServer.Id);
-                if (fallbackVm != null)
-                {
-                    SelectedServerVm = fallbackVm;
-                    await ConnectToAsync(_lastWorkingServer);
-                    if (Status == ConnectionStatus.Connected)
-                    {
-                        var ok = await HealthChecker.IsWorkingAsync();
-                        if (ok) { StartMonitor(); return; }
-                        DisconnectInternal();
-                    }
-                }
-            }
-            ErrorMessage = "Нет доступных серверов";
+            ErrorMessage = "Нет серверов";
             Status = ConnectionStatus.Error;
-            Logger.Instance.Error("UI", "AutoConnect: нет доступных серверов");
             return;
         }
 
-        // Перебираем серверы от лучшего к худшему, пока health check не пройдёт
-        foreach (var candidate in available)
+        // Перебираем: сначала с пингом, потом без (пинг мог упасть из-за DPI)
+        foreach (var candidate in allToTry)
         {
             var vm = Servers.First(v => v.Config.Id == candidate.Server.Id);
             SelectedServerVm = vm;
