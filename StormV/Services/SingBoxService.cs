@@ -143,6 +143,43 @@ public class SingBoxService
             _ => throw new NotSupportedException($"Protocol {s.Protocol} is not supported")
         };
 
+        var rules = new List<object>
+        {
+            new { action = "sniff" },
+            new
+            {
+                ip_cidr = new[] {
+                    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+                    "127.0.0.0/8", "169.254.0.0/16", "fc00::/7"
+                },
+                outbound = "direct"
+            },
+            new
+            {
+                domain_suffix = new[] { "telegram.org", "t.me", "telegram.me", "telesco.pe" },
+                outbound = "proxy"
+            },
+            new
+            {
+                ip_cidr = new[] {
+                    "91.108.0.0/16", "91.105.192.0/23",
+                    "149.154.160.0/20", "185.76.151.0/24", "95.161.76.0/24"
+                },
+                outbound = "proxy"
+            },
+            new
+            {
+                domain_suffix = new[] {
+                    "youtube.com", "youtu.be", "googlevideo.com",
+                    "ytimg.com", "ggpht.com", "youtube-nocookie.com"
+                },
+                outbound = "proxy"
+            }
+        };
+
+        if (customDomains.Count > 0)
+            rules.Add(new { domain_suffix = customDomains.ToArray(), outbound = "proxy" });
+
         var config = new
         {
             log = new { level = "info", timestamp = true },
@@ -164,47 +201,7 @@ public class SingBoxService
             },
             route = new
             {
-                rules = new object[]
-                {
-                    new { action = "sniff" },
-                    // Локальные адреса — напрямую
-                    new
-                    {
-                        ip_cidr = new[] {
-                            "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
-                            "127.0.0.0/8", "169.254.0.0/16", "fc00::/7"
-                        },
-                        outbound = "direct"
-                    },
-                    // Telegram — через прокси
-                    new
-                    {
-                        domain_suffix = new[] { "telegram.org", "t.me", "telegram.me", "telesco.pe" },
-                        outbound = "proxy"
-                    },
-                    new
-                    {
-                        ip_cidr = new[] {
-                            "91.108.0.0/16", "91.105.192.0/23",
-                            "149.154.160.0/20", "185.76.151.0/24", "95.161.76.0/24"
-                        },
-                        outbound = "proxy"
-                    },
-                    // YouTube — через прокси
-                    new
-                    {
-                        domain_suffix = new[] {
-                            "youtube.com", "youtu.be", "googlevideo.com",
-                            "ytimg.com", "ggpht.com", "youtube-nocookie.com"
-                        },
-                        outbound = "proxy"
-                    },
-                    // Пользовательские домены — через прокси
-                    ...(customDomains.Count > 0 ? new object[]
-                    {
-                        new { domain_suffix = customDomains.ToArray(), outbound = "proxy" }
-                    } : Array.Empty<object>())
-                },
+                rules = rules.ToArray(),
                 final = "direct",
                 auto_detect_interface = true
             }
