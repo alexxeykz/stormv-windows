@@ -1,5 +1,3 @@
-using Application = System.Windows.Application;
-
 namespace StormV;
 
 public partial class App : Application
