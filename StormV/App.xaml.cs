@@ -1,3 +1,5 @@
+using Application = System.Windows.Application;
+
 namespace StormV;
 
 public partial class App : Application
@@ -61,7 +63,7 @@ public partial class App : Application
         window.Activate();
     }
 
-    public void Exit()
+    public new void Exit()
     {
         IsExiting = true;
         _trayIcon?.Dispose();
