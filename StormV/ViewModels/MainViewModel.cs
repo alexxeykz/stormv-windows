@@ -6,6 +6,7 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly SingBoxService _singBox = new();
     private AppSettings _settings = ConfigService.LoadSettings();
+    private CancellationTokenSource? _monitorCts;
 
     [ObservableProperty]
     private ObservableCollection<ServerViewModel> _servers = new();
@@ -200,17 +201,16 @@ public partial class MainViewModel : ObservableObject
         var configs = Servers.Select(v => v.Config).ToList();
         var results = await ProtocolSelector.TestAllAsync(configs);
 
-        // обновляем ping в UI по результатам теста
         foreach (var r in results)
         {
             var vm = Servers.FirstOrDefault(v => v.Config.Id == r.Server.Id);
             if (vm != null) vm.Ping = r.IsAvailable ? $"{r.LatencyMs} ms" : "—";
         }
 
-        var best = results.FirstOrDefault(r => r.IsAvailable);
         IsTesting = false;
 
-        if (best == null)
+        var available = results.Where(r => r.IsAvailable).ToList();
+        if (available.Count == 0)
         {
             ErrorMessage = "Нет доступных серверов";
             Status = ConnectionStatus.Error;
@@ -218,11 +218,74 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var bestVm = Servers.First(v => v.Config.Id == best.Server.Id);
-        SelectedServerVm = bestVm;
-        Logger.Instance.Info("UI", $"Лучший: {best.Server.DisplayName} ({best.LatencyMs} ms)");
+        // Перебираем серверы от лучшего к худшему, пока health check не пройдёт
+        foreach (var candidate in available)
+        {
+            var vm = Servers.First(v => v.Config.Id == candidate.Server.Id);
+            SelectedServerVm = vm;
+            Logger.Instance.Info("UI", $"Пробуем: {candidate.Server.DisplayName} ({candidate.LatencyMs} ms)");
 
-        await ConnectToAsync(bestVm.Config);
+            await ConnectToAsync(candidate.Server);
+            if (Status != ConnectionStatus.Connected) continue;
+
+            Logger.Instance.Info("Health", "Проверка доступности Telegram/YouTube...");
+            var ok = await HealthChecker.IsWorkingAsync();
+            if (ok)
+            {
+                Logger.Instance.Info("Health", $"Работает: {candidate.Server.DisplayName}");
+                StartMonitor();
+                return;
+            }
+
+            Logger.Instance.Warning("Health", $"Не работает: {candidate.Server.DisplayName}, пробуем следующий...");
+            DisconnectInternal();
+            await Task.Delay(500);
+        }
+
+        ErrorMessage = "Ни один протокол не обеспечивает доступ к Telegram/YouTube";
+        Status = ConnectionStatus.Error;
+        Logger.Instance.Error("UI", "AutoConnect: все серверы провалили health check");
+    }
+
+    // ── Background monitor ────────────────────────────────────────────────────
+
+    private void StartMonitor()
+    {
+        _monitorCts?.Cancel();
+        _monitorCts = new CancellationTokenSource();
+        _ = MonitorLoopAsync(_monitorCts.Token);
+    }
+
+    private void StopMonitor()
+    {
+        _monitorCts?.Cancel();
+        _monitorCts = null;
+    }
+
+    private async Task MonitorLoopAsync(CancellationToken ct)
+    {
+        Logger.Instance.Info("Monitor", "Фоновый мониторинг запущен (каждые 60 сек)");
+        while (!ct.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+            if (ct.IsCancellationRequested || Status != ConnectionStatus.Connected) break;
+
+            var ok = await HealthChecker.IsWorkingAsync();
+            if (ok)
+            {
+                Logger.Instance.Debug("Monitor", "Соединение в порядке");
+                continue;
+            }
+
+            Logger.Instance.Warning("Monitor", "Соединение упало — запускаем AutoConnect");
+            await Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                if (Status == ConnectionStatus.Connected)
+                    await AutoConnectCommand.ExecuteAsync(null);
+            });
+            break;
+        }
+        Logger.Instance.Info("Monitor", "Фоновый мониторинг остановлен");
     }
 
     // ── Connect ───────────────────────────────────────────────────────────────
@@ -266,6 +329,7 @@ public partial class MainViewModel : ObservableObject
     private void DisconnectInternal()
     {
         Logger.Instance.Info("UI", "Отключение...");
+        StopMonitor();
         _singBox.Stop();
         ProxyService.ClearProxy();
         Status = ConnectionStatus.Disconnected;
