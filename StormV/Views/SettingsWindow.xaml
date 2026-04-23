@@ -76,6 +76,25 @@
                        FontSize="11" Foreground="{StaticResource SV.TextSecondaryBrush}"
                        Margin="0,0,0,16"/>
 
+            <!-- Proxy domains -->
+            <TextBlock Text="Сайты через VPN" FontSize="13" FontWeight="Medium"
+                       Foreground="{StaticResource SV.TextSecondaryBrush}" Margin="0,0,0,8"/>
+            <TextBox materialDesign:HintAssist.Hint="instagram.com&#x0a;facebook.com&#x0a;twitter.com"
+                     materialDesign:HintAssist.IsFloating="True"
+                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                     Text="{Binding ProxyDomainsText, UpdateSourceTrigger=PropertyChanged}"
+                     AcceptsReturn="True"
+                     Height="120"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     FontSize="13"
+                     FontFamily="Consolas"
+                     Margin="0,0,0,8"/>
+            <TextBlock Text="Каждый домен с новой строки. Telegram и YouTube добавлены автоматически."
+                       FontSize="11" Foreground="{StaticResource SV.TextSecondaryBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,16"/>
+
             <!-- Кнопки -->
             <Grid>
                 <Grid.ColumnDefinitions>

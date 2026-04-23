@@ -8,6 +8,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _dnsSecondary;
     [ObservableProperty] private bool _autoConnectOnStart;
     [ObservableProperty] private string _bypassText;
+    [ObservableProperty] private string _proxyDomainsText;
 
     public event Action? CloseRequested;
 
@@ -18,6 +19,7 @@ public partial class SettingsViewModel : ObservableObject
         _dnsSecondary = _original.DnsSecondary;
         _autoConnectOnStart = _original.AutoConnectOnStart;
         _bypassText = string.Join("\n", _original.BypassList);
+        _proxyDomainsText = string.Join("\n", _original.ProxyDomains);
     }
 
     [RelayCommand]
@@ -28,10 +30,17 @@ public partial class SettingsViewModel : ObservableObject
             DnsPrimary = DnsPrimary.Trim(),
             DnsSecondary = DnsSecondary.Trim(),
             AutoConnectOnStart = AutoConnectOnStart,
+            SubscriptionUrls = _original.SubscriptionUrls,
             BypassList = BypassText
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.Trim())
                 .Where(l => l.Length > 0)
+                .ToList(),
+            ProxyDomains = ProxyDomainsText
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim().ToLower())
+                .Where(l => l.Length > 0)
+                .Distinct()
                 .ToList()
         };
         SettingsService.Save(settings);

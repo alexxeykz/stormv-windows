@@ -125,6 +125,12 @@ public class SingBoxService
 
     private static string BuildConfig(ServerConfig s)
     {
+        var customDomains = SettingsService.Load().ProxyDomains;
+        return BuildConfigWithDomains(s, customDomains);
+    }
+
+    private static string BuildConfigWithDomains(ServerConfig s, List<string> customDomains)
+    {
         var outbound = s.Protocol switch
         {
             Protocol.Vless => BuildVless(s),
@@ -192,7 +198,12 @@ public class SingBoxService
                             "ytimg.com", "ggpht.com", "youtube-nocookie.com"
                         },
                         outbound = "proxy"
-                    }
+                    },
+                    // Пользовательские домены — через прокси
+                    ...(customDomains.Count > 0 ? new object[]
+                    {
+                        new { domain_suffix = customDomains.ToArray(), outbound = "proxy" }
+                    } : Array.Empty<object>())
                 },
                 final = "direct",
                 auto_detect_interface = true

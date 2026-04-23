@@ -10,6 +10,9 @@ public class AppSettings
     // Сохранённые URL подписок
     public List<string> SubscriptionUrls { get; set; } = new();
 
+    // Пользовательские домены — через прокси
+    public List<string> ProxyDomains { get; set; } = new();
+
     // Bypass: приложения/IP которые не идут через VPN
     public List<string> BypassList { get; set; } = new()
     {
