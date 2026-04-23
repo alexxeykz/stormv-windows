@@ -19,3 +19,17 @@ public class IpMaskConverter : System.Windows.Data.IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }
+
+/// <summary>
+/// Инвертирует bool: true → false, false → true. Для блокировки кнопки во время загрузки.
+/// </summary>
+public class InverseBoolConverter : System.Windows.Data.IValueConverter
+{
+    public static readonly InverseBoolConverter Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is bool b ? !b : value;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is bool b ? !b : value;
+}

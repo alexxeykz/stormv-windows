@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:views="clr-namespace:StormV.Views"
         Title="Добавить сервер"
         Width="420" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
@@ -9,6 +10,10 @@
         Background="{StaticResource SV.BackgroundDeepBrush}"
         TextElement.Foreground="{StaticResource SV.TextPrimaryBrush}"
         TextElement.FontFamily="{materialDesign:MaterialDesignFont}">
+
+    <Window.Resources>
+        <views:InverseBoolConverter x:Key="InverseBoolConverter"/>
+    </Window.Resources>
 
     <Border Padding="24">
         <StackPanel>
@@ -130,6 +135,7 @@
                         Style="{StaticResource MaterialDesignRaisedButton}"
                         Height="44"
                         Command="{Binding ConfirmCommand}"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
                         FontWeight="Bold">
                     <Button.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
