@@ -41,7 +41,7 @@ public static class ProtocolSelector
         return results.FirstOrDefault(r => r.IsAvailable)?.Server;
     }
 
-    private static async Task<ProtocolTestResult> TestOneAsync(ServerConfig s, int timeoutMs)
+    public static async Task<ProtocolTestResult> TestOneAsync(ServerConfig s, int timeoutMs = 4000)
     {
         var latency = UdpProtocols.Contains(s.Protocol)
             ? await IcmpPingAsync(s.Host, timeoutMs)

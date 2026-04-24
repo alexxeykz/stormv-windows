@@ -132,14 +132,23 @@
                                FontWeight="Medium"
                                Foreground="{StaticResource SV.TextSecondaryBrush}"
                                VerticalAlignment="Center"/>
-                    <Button HorizontalAlignment="Right"
-                            Style="{StaticResource MaterialDesignIconButton}"
-                            ToolTip="Добавить сервер"
-                            Command="{Binding AddServerCommand}"
-                            Foreground="{StaticResource SV.AccentPurpleBrush}"
-                            Cursor="Hand">
-                        <materialDesign:PackIcon Kind="Plus" Width="22" Height="22"/>
-                    </Button>
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                ToolTip="Обновить пинг"
+                                Command="{Binding PingAllServersCommand}"
+                                Foreground="{StaticResource SV.TextSecondaryBrush}"
+                                Cursor="Hand"
+                                Margin="0,0,4,0">
+                            <materialDesign:PackIcon Kind="SpeedometerMedium" Width="18" Height="18"/>
+                        </Button>
+                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                ToolTip="Добавить сервер"
+                                Command="{Binding AddServerCommand}"
+                                Foreground="{StaticResource SV.AccentPurpleBrush}"
+                                Cursor="Hand">
+                            <materialDesign:PackIcon Kind="Plus" Width="22" Height="22"/>
+                        </Button>
+                    </StackPanel>
                 </Grid>
 
                 <!-- Пустой список -->

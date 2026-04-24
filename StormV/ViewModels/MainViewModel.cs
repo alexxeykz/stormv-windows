@@ -177,8 +177,8 @@ public partial class MainViewModel : ObservableObject
     private async Task PingSingleServerAsync(ServerViewModel vm)
     {
         vm.Ping = "...";
-        var ms = await PingService.PingAsync(vm.Config.Host, vm.Config.Port);
-        vm.Ping = ms.HasValue ? $"{ms} ms" : "—";
+        var result = await ProtocolSelector.TestOneAsync(vm.Config);
+        vm.Ping = result.IsAvailable ? $"{result.LatencyMs} ms" : "—";
     }
 
     // ── Auto-select ───────────────────────────────────────────────────────────
