@@ -45,6 +45,13 @@ public class SingBoxService
             File.WriteAllText(_configPath, config);
             Logger.Instance.Debug("SingBox", $"Конфиг записан: {_configPath}");
 
+            var configErr = await ValidateConfigAsync();
+            if (configErr != null)
+            {
+                Logger.Instance.Error("SingBox", $"Ошибка конфига: {configErr}");
+                return (false, $"Ошибка конфига:\n{configErr}");
+            }
+
             _process = new Process
             {
                 StartInfo = new ProcessStartInfo
@@ -119,6 +126,32 @@ public class SingBoxService
         {
             _process = null;
         }
+    }
+
+    // ─── Config validation ───────────────────────────────────────────────────
+
+    private async Task<string?> ValidateConfigAsync()
+    {
+        using var check = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = _singBoxPath,
+                Arguments = $"check -c \"{_configPath}\"",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            }
+        };
+        check.Start();
+        var stdout = await check.StandardOutput.ReadToEndAsync();
+        var stderr = await check.StandardError.ReadToEndAsync();
+        await check.WaitForExitAsync();
+
+        if (check.ExitCode == 0) return null;
+        var msg = (stdout + " " + stderr).Trim();
+        return string.IsNullOrEmpty(msg) ? "sing-box check: невалидный конфиг" : msg;
     }
 
     // ─── Config builder ──────────────────────────────────────────────────────

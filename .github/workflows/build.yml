@@ -4,6 +4,10 @@ on:
   push:
     branches: [ master ]
 
+env:
+  # Обновить при необходимости: https://github.com/SagerNet/sing-box/releases
+  SING_BOX_VERSION: "1.10.6"
+
 jobs:
   build:
     runs-on: windows-latest
@@ -18,10 +22,12 @@ jobs:
       - name: Download sing-box for Windows
         shell: pwsh
         run: |
-          $latest = (Invoke-RestMethod "https://api.github.com/repos/SagerNet/sing-box/releases/latest").tag_name -replace 'v',''
-          Invoke-WebRequest "https://github.com/SagerNet/sing-box/releases/download/v$latest/sing-box-$latest-windows-amd64.zip" -OutFile sing-box.zip
+          $version = "${{ env.SING_BOX_VERSION }}"
+          Write-Host "Downloading sing-box v$version"
+          Invoke-WebRequest "https://github.com/SagerNet/sing-box/releases/download/v$version/sing-box-$version-windows-amd64.zip" -OutFile sing-box.zip
           Expand-Archive sing-box.zip -DestinationPath sing-box-tmp
           Copy-Item (Get-ChildItem sing-box-tmp -Recurse -Filter "sing-box.exe")[0].FullName -Destination StormV/sing-box.exe
+          Write-Host "sing-box v$version ready"
 
       - name: Build
         run: dotnet publish StormV/StormV.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o publish
