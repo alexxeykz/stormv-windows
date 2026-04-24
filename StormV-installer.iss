@@ -1,6 +1,6 @@
 [Setup]
 AppName=StormV
-AppVersion=1.0.0
+AppVersion=1.1.1
 AppPublisher=StormV Team
 DefaultDirName={autopf}\StormV
 DefaultGroupName=StormV
