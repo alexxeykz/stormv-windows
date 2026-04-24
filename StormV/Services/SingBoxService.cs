@@ -202,8 +202,7 @@ public class SingBoxService
             route = new
             {
                 rules = rules.ToArray(),
-                final = "direct",
-                auto_detect_interface = true
+                final = "direct"
             }
         };
 
@@ -350,11 +349,12 @@ public class SingBoxService
 
         if (s.Security == "reality")
         {
+            var fp = string.IsNullOrEmpty(s.Fingerprint) ? "chrome" : s.Fingerprint;
             return new
             {
                 enabled = true,
                 server_name = s.Sni,
-                utls = new { enabled = true, fingerprint = s.Fingerprint },
+                utls = new { enabled = true, fingerprint = fp },
                 reality = new
                 {
                     enabled = true,
