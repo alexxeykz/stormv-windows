@@ -4,10 +4,6 @@ on:
   push:
     branches: [ master ]
 
-env:
-  # Обновить при необходимости: https://github.com/SagerNet/sing-box/releases
-  SING_BOX_VERSION: "1.9.7"
-
 jobs:
   build:
     runs-on: windows-latest
@@ -22,7 +18,7 @@ jobs:
       - name: Download sing-box for Windows
         shell: pwsh
         run: |
-          $version = "${{ env.SING_BOX_VERSION }}"
+          $version = (Invoke-RestMethod "https://api.github.com/repos/SagerNet/sing-box/releases/latest").tag_name -replace 'v',''
           Write-Host "Downloading sing-box v$version"
           Invoke-WebRequest "https://github.com/SagerNet/sing-box/releases/download/v$version/sing-box-$version-windows-amd64.zip" -OutFile sing-box.zip
           Expand-Archive sing-box.zip -DestinationPath sing-box-tmp
