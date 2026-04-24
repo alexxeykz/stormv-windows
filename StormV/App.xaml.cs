@@ -8,6 +8,9 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Сброс прокси на случай если прошлый сеанс завершился аварийно
+        ProxyService.ClearProxy();
+
         DispatcherUnhandledException += (_, ex) =>
         {
             var msg = FormatException(ex.Exception);
@@ -71,6 +74,9 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        ProxyService.ClearProxy();
+        foreach (var p in System.Diagnostics.Process.GetProcessesByName("sing-box"))
+            try { p.Kill(); } catch { }
         _trayIcon?.Dispose();
         base.OnExit(e);
     }

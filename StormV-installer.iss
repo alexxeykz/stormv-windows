@@ -42,6 +42,9 @@ Filename: "{app}\StormV.exe"; Description: "Запустить StormV"; Flags: n
 ; Завершаем процессы перед удалением
 Filename: "taskkill.exe"; Parameters: "/F /IM StormV.exe"; Flags: runhidden; RunOnceId: "KillStormV"
 Filename: "taskkill.exe"; Parameters: "/F /IM sing-box.exe"; Flags: runhidden; RunOnceId: "KillSingBox"
+; Сбрасываем системный прокси
+Filename: "reg.exe"; Parameters: "add ""HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings"" /v ProxyEnable /t REG_DWORD /d 0 /f"; Flags: runhidden; RunOnceId: "ClearProxyEnable"
+Filename: "reg.exe"; Parameters: "delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings"" /v ProxyServer /f"; Flags: runhidden; RunOnceId: "DeleteProxyServer"
 
 [UninstallDelete]
 ; Удаляем конфиги, логи и все пользовательские данные
