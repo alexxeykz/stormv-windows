@@ -178,7 +178,6 @@ public class SingBoxService
 
         var rules = new List<object>
         {
-            new { action = "sniff" },
             new
             {
                 ip_cidr = new[] {

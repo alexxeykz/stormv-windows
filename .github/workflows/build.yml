@@ -6,7 +6,7 @@ on:
 
 env:
   # Обновить при необходимости: https://github.com/SagerNet/sing-box/releases
-  SING_BOX_VERSION: "1.10.6"
+  SING_BOX_VERSION: "1.9.7"
 
 jobs:
   build:
