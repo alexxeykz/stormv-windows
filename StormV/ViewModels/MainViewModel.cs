@@ -7,8 +7,12 @@ public partial class MainViewModel : ObservableObject
     private readonly SingBoxService _singBox = new();
     private AppSettings _settings = ConfigService.LoadSettings();
     private CancellationTokenSource? _monitorCts;
+    private CancellationTokenSource? _clashPollCts;
     private ServerConfig? _lastWorkingServer;
     private int _healthFailCount;
+
+    // Все серверы (включая скрытый IsAuto). Servers содержит только видимые.
+    private List<ServerConfig> _allServers = new();
 
     [ObservableProperty]
     private ObservableCollection<ServerViewModel> _servers = new();
@@ -30,8 +34,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _logText = string.Empty;
 
+    // Тег активного сервера из Clash API (для строки "Сервер:" при авто-режиме)
+    [ObservableProperty]
+    private string _activeServerTag = string.Empty;
+
     public bool IsConnected => Status == ConnectionStatus.Connected;
-    public bool CanConnect => SelectedServerVm != null && Status != ConnectionStatus.Connecting;
+    public bool CanConnect  => SelectedServerVm != null && Status != ConnectionStatus.Connecting;
 
     public string StatusText => Status switch
     {
@@ -49,12 +57,24 @@ public partial class MainViewModel : ObservableObject
         _ => "ПОДКЛЮЧИТЬ"
     };
 
+    // Строка "Сервер:" — показывает активный из urltest или выбранный вручную
+    public string SelectedServerDisplay
+    {
+        get
+        {
+            if (IsConnected && !string.IsNullOrEmpty(ActiveServerTag))
+                return ActiveServerTag;
+            return SelectedServerVm?.Config.DisplayName ?? "Не выбран";
+        }
+    }
+
     public event Action? AddServerRequested;
 
     public MainViewModel()
     {
-        var saved = ConfigService.LoadServers();
-        foreach (var s in saved) Servers.Add(new ServerViewModel(s));
+        _allServers = ConfigService.LoadServers();
+        foreach (var s in _allServers.Where(s => !s.IsAuto))
+            Servers.Add(new ServerViewModel(s));
         SelectedServerVm = Servers.FirstOrDefault();
 
         _singBox.LogReceived += line =>
@@ -72,6 +92,7 @@ public partial class MainViewModel : ObservableObject
                     Status = ConnectionStatus.Error;
                     ErrorMessage = err;
                     ProxyService.ClearProxy();
+                    StopClashApiPolling();
                 }
             });
 
@@ -89,20 +110,25 @@ public partial class MainViewModel : ObservableObject
 
     public void AddServerConfig(ServerConfig server)
     {
-        var vm = new ServerViewModel(server);
-        Servers.Add(vm);
-        ConfigService.SaveServers(Servers.Select(v => v.Config));
-        SelectedServerVm ??= vm;
-        _ = PingSingleServerAsync(vm);
+        _allServers.Add(server);
+        if (!server.IsAuto)
+        {
+            var vm = new ServerViewModel(server);
+            Servers.Add(vm);
+            SelectedServerVm ??= vm;
+            _ = PingSingleServerAsync(vm);
+        }
+        ConfigService.SaveServers(_allServers);
     }
 
     public void AddSubscriptionServers(List<ServerConfig> servers, string subscriptionUrl = "")
     {
-        // Помечаем откуда сервер и удаляем старые серверы этой подписки
         if (!string.IsNullOrEmpty(subscriptionUrl))
         {
-            var old = Servers.Where(v => v.Config.SubscriptionUrl == subscriptionUrl).ToList();
-            foreach (var v in old) Servers.Remove(v);
+            // Удаляем старые серверы этой подписки
+            var oldVms = Servers.Where(v => v.Config.SubscriptionUrl == subscriptionUrl).ToList();
+            foreach (var v in oldVms) Servers.Remove(v);
+            _allServers.RemoveAll(s => s.SubscriptionUrl == subscriptionUrl);
 
             foreach (var s in servers) s.SubscriptionUrl = subscriptionUrl;
 
@@ -113,15 +139,18 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
-        foreach (var server in servers)
+        _allServers.AddRange(servers);
+
+        foreach (var server in servers.Where(s => !s.IsAuto))
         {
             var vm = new ServerViewModel(server);
             Servers.Add(vm);
             _ = PingSingleServerAsync(vm);
         }
-        ConfigService.SaveServers(Servers.Select(v => v.Config));
+
+        ConfigService.SaveServers(_allServers);
         SelectedServerVm ??= Servers.FirstOrDefault();
-        Logger.Instance.Info("UI", $"Подписка: добавлено {servers.Count} серверов");
+        Logger.Instance.Info("UI", $"Подписка: добавлено {servers.Count(s => !s.IsAuto)} серверов");
     }
 
     // ── Refresh subscriptions ─────────────────────────────────────────────────
@@ -136,21 +165,17 @@ public partial class MainViewModel : ObservableObject
     private async Task RefreshSubscriptions()
     {
         if (_settings.SubscriptionUrls.Count == 0) return;
-
         IsRefreshing = true;
-        Logger.Instance.Info("UI", $"Обновление {_settings.SubscriptionUrls.Count} подписок...");
-
         foreach (var url in _settings.SubscriptionUrls.ToList())
         {
             var (servers, error) = await SubscriptionService.FetchAsync(url);
             if (!string.IsNullOrEmpty(error))
             {
-                Logger.Instance.Error("UI", $"Ошибка обновления подписки: {error}");
+                Logger.Instance.Error("UI", $"Ошибка обновления: {error}");
                 continue;
             }
             AddSubscriptionServers(servers, url);
         }
-
         IsRefreshing = false;
         Logger.Instance.Info("UI", "Подписки обновлены");
     }
@@ -161,7 +186,8 @@ public partial class MainViewModel : ObservableObject
         if (vm == null) return;
         if (vm == SelectedServerVm && IsConnected) DisconnectInternal();
         Servers.Remove(vm);
-        ConfigService.SaveServers(Servers.Select(v => v.Config));
+        _allServers.Remove(vm.Config);
+        ConfigService.SaveServers(_allServers);
         if (SelectedServerVm == vm) SelectedServerVm = Servers.FirstOrDefault();
     }
 
@@ -171,9 +197,7 @@ public partial class MainViewModel : ObservableObject
     private async Task PingAllServers() => await PingAllServersAsync();
 
     private async Task PingAllServersAsync()
-    {
-        await Task.WhenAll(Servers.Select(PingSingleServerAsync));
-    }
+        => await Task.WhenAll(Servers.Select(PingSingleServerAsync));
 
     private async Task PingSingleServerAsync(ServerViewModel vm)
     {
@@ -182,7 +206,7 @@ public partial class MainViewModel : ObservableObject
         vm.Ping = result.IsAvailable ? $"{result.LatencyMs} ms" : "—";
     }
 
-    // ── Auto-select ───────────────────────────────────────────────────────────
+    // ── Auto-connect ──────────────────────────────────────────────────────────
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAutoConnect))]
@@ -195,11 +219,22 @@ public partial class MainViewModel : ObservableObject
     private async Task AutoConnect()
     {
         if (IsConnected) DisconnectInternal();
-
         IsTesting = true;
         ErrorMessage = string.Empty;
-        Logger.Instance.Info("UI", "Поиск лучшего протокола...");
 
+        // Если есть авто-сервер из подписки — подключаемся через него (urltest)
+        var autoServer = _allServers.FirstOrDefault(s => s.IsAuto);
+        if (autoServer != null)
+        {
+            Logger.Instance.Info("UI", "Auto-режим: urltest подберёт лучший сервер");
+            await ConnectToAsync(autoServer);
+            IsTesting = false;
+            if (Status == ConnectionStatus.Connected) StartMonitor();
+            return;
+        }
+
+        // Нет подписки — перебираем серверы вручную
+        Logger.Instance.Info("UI", "Поиск лучшего протокола...");
         var configs = Servers.Select(v => v.Config).ToList();
         var results = await ProtocolSelector.TestAllAsync(configs);
 
@@ -211,29 +246,22 @@ public partial class MainViewModel : ObservableObject
 
         IsTesting = false;
 
-        // Сначала серверы с успешным пингом, потом без пинга (DPI мог заблокировать)
-        var available = results.Where(r => r.IsAvailable).ToList();
-        var unavailable = results.Where(r => !r.IsAvailable).ToList();
-        var allToTry = available.Concat(unavailable).ToList();
+        var allToTry = results.Where(r => r.IsAvailable)
+            .Concat(results.Where(r => !r.IsAvailable))
+            .ToList();
 
-        if (allToTry.Count == 0)
-        {
-            ErrorMessage = "Нет серверов";
-            Status = ConnectionStatus.Error;
-            return;
-        }
+        if (allToTry.Count == 0) { Status = ConnectionStatus.Error; ErrorMessage = "Нет серверов"; return; }
 
-        // Перебираем: сначала с пингом, потом без (пинг мог упасть из-за DPI)
         foreach (var candidate in allToTry)
         {
             var vm = Servers.First(v => v.Config.Id == candidate.Server.Id);
             SelectedServerVm = vm;
-            Logger.Instance.Info("UI", $"Пробуем: {candidate.Server.DisplayName} ({candidate.LatencyMs} ms)");
+            Logger.Instance.Info("UI", $"Пробуем: {candidate.Server.DisplayName}");
 
             await ConnectToAsync(candidate.Server);
             if (Status != ConnectionStatus.Connected) continue;
 
-            Logger.Instance.Info("Health", "Проверка доступности Telegram/YouTube...");
+            Logger.Instance.Info("Health", "Проверка Telegram/YouTube...");
             var ok = await HealthChecker.IsWorkingAsync();
             if (ok)
             {
@@ -243,17 +271,16 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            Logger.Instance.Warning("Health", $"Не работает: {candidate.Server.DisplayName}, пробуем следующий...");
+            Logger.Instance.Warning("Health", $"Не работает: {candidate.Server.DisplayName}");
             DisconnectInternal();
             await Task.Delay(500);
         }
 
         ErrorMessage = "Ни один протокол не обеспечивает доступ к Telegram/YouTube";
         Status = ConnectionStatus.Error;
-        Logger.Instance.Error("UI", "AutoConnect: все серверы провалили health check");
     }
 
-    // ── Background monitor ────────────────────────────────────────────────────
+    // ── Background health monitor ─────────────────────────────────────────────
 
     private void StartMonitor()
     {
@@ -271,7 +298,7 @@ public partial class MainViewModel : ObservableObject
 
     private async Task MonitorLoopAsync(CancellationToken ct)
     {
-        Logger.Instance.Info("Monitor", "Мониторинг запущен (каждые 30 сек, переключение после 2 неудач)");
+        Logger.Instance.Info("Monitor", "Мониторинг запущен (30 сек, переключение после 2 неудач)");
         while (!ct.IsCancellationRequested)
         {
             await Task.Delay(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
@@ -282,7 +309,7 @@ public partial class MainViewModel : ObservableObject
             {
                 _healthFailCount = 0;
                 Logger.Instance.Debug("Monitor",
-                    $"OK — Telegram {result.TelegramMs}ms, YouTube CDN {result.YoutubeMs}ms");
+                    $"OK — Telegram {result.TelegramMs}ms, YouTube {result.YoutubeMs}ms");
                 continue;
             }
 
@@ -291,11 +318,10 @@ public partial class MainViewModel : ObservableObject
                 $"[{_healthFailCount}/2] Недоступно: {result.FailedService} " +
                 $"(Telegram {result.TelegramMs}ms, YouTube {result.YoutubeMs}ms)");
 
-            // Ждём подтверждения от второй проверки — один сбой может быть временным.
             if (_healthFailCount < 2) continue;
 
             _healthFailCount = 0;
-            Logger.Instance.Warning("Monitor", "Два сбоя подряд — переключаемся на другой сервер");
+            Logger.Instance.Warning("Monitor", "Два сбоя подряд — переподключение...");
             await Application.Current.Dispatcher.InvokeAsync(async () =>
             {
                 if (Status == ConnectionStatus.Connected)
@@ -306,7 +332,59 @@ public partial class MainViewModel : ObservableObject
         Logger.Instance.Info("Monitor", "Мониторинг остановлен");
     }
 
-    // ── Connect ───────────────────────────────────────────────────────────────
+    // ── Clash API polling (активный сервер urltest) ───────────────────────────
+
+    private void StartClashApiPolling()
+    {
+        _clashPollCts?.Cancel();
+        _clashPollCts = new CancellationTokenSource();
+        _ = PollClashApiAsync(_clashPollCts.Token);
+    }
+
+    private void StopClashApiPolling()
+    {
+        _clashPollCts?.Cancel();
+        _clashPollCts = null;
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            foreach (var vm in Servers) vm.IsActive = false;
+            ActiveServerTag = string.Empty;
+            OnPropertyChanged(nameof(SelectedServerDisplay));
+        });
+    }
+
+    private async Task PollClashApiAsync(CancellationToken ct)
+    {
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(3000, ct);
+                var json = await http.GetStringAsync(
+                    $"http://127.0.0.1:{SingBoxService.ClashApiPort}/proxies/auto", ct);
+
+                using var doc = JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("now", out var now)) continue;
+
+                var tag = now.GetString() ?? string.Empty;
+                if (tag == ActiveServerTag) continue;
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    ActiveServerTag = tag;
+                    foreach (var vm in Servers)
+                        vm.IsActive = vm.Config.Name == tag;
+                    OnPropertyChanged(nameof(SelectedServerDisplay));
+                    Logger.Instance.Debug("ClashAPI", $"Активный сервер: {tag}");
+                });
+            }
+            catch (OperationCanceledException) { break; }
+            catch { /* sing-box ещё инициализируется */ }
+        }
+    }
+
+    // ── Connect / Disconnect ──────────────────────────────────────────────────
 
     [RelayCommand]
     private async Task ToggleConnection()
@@ -317,30 +395,37 @@ public partial class MainViewModel : ObservableObject
             return;
         }
         if (SelectedServerVm == null) return;
-        Logger.Instance.Info("UI", $"Пользователь нажал ПОДКЛЮЧИТЬ → {SelectedServerVm.Config.DisplayName}");
+        Logger.Instance.Info("UI", $"Подключение → {SelectedServerVm.Config.DisplayName}");
         await ConnectToAsync(SelectedServerVm.Config);
     }
 
     private async Task ConnectToAsync(ServerConfig config)
     {
+        // Если выбран сервер из подписки → используем скрытый авто-конфиг (urltest)
+        var serverToUse = config.IsSubscription
+            ? _allServers.FirstOrDefault(s => s.IsAuto) ?? config
+            : config;
+
         Status = ConnectionStatus.Connecting;
         ErrorMessage = string.Empty;
         LogText = string.Empty;
 
-        var (success, error) = await _singBox.StartAsync(config);
+        var (success, error) = await _singBox.StartAsync(serverToUse);
 
         if (success)
         {
             ProxyService.SetProxy(SingBoxService.MixedPort);
             Status = ConnectionStatus.Connected;
-            Logger.Instance.Info("UI", "Статус: ПОДКЛЮЧЕНО");
+            Logger.Instance.Info("UI", $"Подключено [{(serverToUse.IsAuto ? "urltest" : serverToUse.DisplayName)}]");
+            if (serverToUse.IsAuto) StartClashApiPolling();
+            OnPropertyChanged(nameof(SelectedServerDisplay));
         }
         else
         {
             Status = ConnectionStatus.Error;
             ErrorMessage = error;
             ProxyService.ClearProxy();
-            Logger.Instance.Error("UI", $"Статус: ОШИБКА — {error}");
+            Logger.Instance.Error("UI", $"Ошибка: {error}");
         }
     }
 
@@ -348,11 +433,13 @@ public partial class MainViewModel : ObservableObject
     {
         Logger.Instance.Info("UI", "Отключение...");
         StopMonitor();
+        StopClashApiPolling();
         _singBox.Stop();
         ProxyService.ClearProxy();
         Status = ConnectionStatus.Disconnected;
         ErrorMessage = string.Empty;
-        Logger.Instance.Info("UI", "Статус: ОТКЛЮЧЕНО");
+        OnPropertyChanged(nameof(SelectedServerDisplay));
+        Logger.Instance.Info("UI", "Отключено");
     }
 
     public void OnClosing()

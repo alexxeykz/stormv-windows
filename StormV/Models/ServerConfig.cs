@@ -58,7 +58,15 @@ public class ServerConfig
     public string LocalAddress { get; set; } = string.Empty;
     public int Mtu { get; set; } = 1420;
 
-    public string ProtocolLabel => Protocol switch
+    // ── Auto-режим (urltest через sing-box JSON подписки) ──────────────────────
+    // IsAuto=true  — скрытый сервер, хранит SingboxConfig с urltest, не показывается в списке
+    // IsSubscription=true — видимый сервер из подписки, при подключении → используется IsAuto-конфиг
+    public bool IsAuto { get; set; } = false;
+    public bool IsSubscription { get; set; } = false;
+    public string SingboxConfig { get; set; } = string.Empty;
+    public int ServerCount { get; set; } = 0;
+
+    public string ProtocolLabel => IsAuto ? "AUTO" : Protocol switch
     {
         Protocol.Vless => "VLESS",
         Protocol.Vmess => "VMess",
@@ -70,7 +78,7 @@ public class ServerConfig
         _ => "?"
     };
 
-    public string DisplayName => string.IsNullOrWhiteSpace(Name)
-        ? $"{ProtocolLabel} · {Host}:{Port}"
-        : Name;
+    public string DisplayName => IsAuto
+        ? $"Auto · {ServerCount} серв."
+        : string.IsNullOrWhiteSpace(Name) ? $"{ProtocolLabel} · {Host}:{Port}" : Name;
 }

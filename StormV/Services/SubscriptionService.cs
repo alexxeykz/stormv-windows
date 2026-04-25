@@ -1,8 +1,14 @@
 namespace StormV.Services;
 
 /// <summary>
-/// Скачивает подписку по URL и возвращает список серверов.
-/// Поддерживает base64-encoded и plain-text форматы.
+/// Скачивает подписку и возвращает список серверов.
+///
+/// Sing-box JSON (User-Agent: StormV/1.0 sing-box):
+///   - Возвращает [autoServer(IsAuto=true)] + [серверы(IsSubscription=true)]
+///   - autoServer хранит полный SingboxConfig с urltest + Clash API
+///   - Индивидуальные серверы — только для отображения в UI
+///
+/// Base64 / plain-text: разбирается как раньше в список ServerConfig.
 /// </summary>
 public static class SubscriptionService
 {
@@ -20,19 +26,17 @@ public static class SubscriptionService
             var raw = await _http.GetStringAsync(url);
             raw = raw.Trim();
 
-            // Пробуем как sing-box JSON
             var singboxServers = TrySingboxParse(raw);
             if (singboxServers != null)
             {
                 if (singboxServers.Count == 0)
                     return (singboxServers, "Не найдено ни одного сервера в подписке");
-                Logger.Instance.Info("Sub", $"Загружено серверов (singbox): {singboxServers.Count}");
+                var vis = singboxServers.Count(s => !s.IsAuto);
+                Logger.Instance.Info("Sub", $"Singbox JSON: {vis} серверов + auto-конфиг");
                 return (singboxServers, string.Empty);
             }
 
-            // Пробуем декодировать как base64
             var content = TryBase64Decode(raw) ?? raw;
-
             var servers = content
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.Trim())
@@ -55,6 +59,8 @@ public static class SubscriptionService
         }
     }
 
+    // ── Sing-box JSON parsing ─────────────────────────────────────────────────
+
     private static readonly HashSet<string> VpnTypes = new(StringComparer.OrdinalIgnoreCase)
         { "vless", "vmess", "trojan", "shadowsocks", "hysteria2", "tuic", "wireguard" };
 
@@ -63,29 +69,142 @@ public static class SubscriptionService
         if (!raw.StartsWith("{")) return null;
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            using var doc = JsonDocument.Parse(raw);
             if (!doc.RootElement.TryGetProperty("outbounds", out var outbounds)) return null;
 
-            var result = new List<ServerConfig>();
+            var individualConfigs = new List<ServerConfig>();
+            var serverTags        = new List<string>();
+            var serverRawJsons    = new List<string>();
+
             foreach (var ob in outbounds.EnumerateArray())
             {
                 if (!ob.TryGetProperty("type", out var typeProp)) continue;
                 var type = typeProp.GetString() ?? "";
                 if (!VpnTypes.Contains(type)) continue;
 
+                var tag = ob.TryGetProperty("tag", out var tg) ? tg.GetString() ?? "" : "";
+                if (string.IsNullOrEmpty(tag)) continue;
+
                 var cfg = ParseSingboxOutbound(ob, type);
-                if (cfg != null) result.Add(cfg);
+                if (cfg == null) continue;
+
+                cfg.IsSubscription = true;
+                individualConfigs.Add(cfg);
+                serverTags.Add(tag);
+                serverRawJsons.Add(ob.GetRawText());
             }
-            return result;
+
+            if (individualConfigs.Count == 0) return null;
+
+            var autoConfig = BuildAutoSingboxConfig(serverTags, serverRawJsons);
+            var autoServer = new ServerConfig
+            {
+                Name          = $"Auto · {individualConfigs.Count} серв.",
+                IsAuto        = true,
+                SingboxConfig = autoConfig,
+                ServerCount   = individualConfigs.Count,
+                Protocol      = Protocol.Vless // заглушка для сериализации
+            };
+
+            return new List<ServerConfig> { autoServer }.Concat(individualConfigs).ToList();
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            Logger.Instance.Warning("Sub", $"TrySingboxParse error: {ex.Message}");
+            return null;
+        }
     }
 
-    private static ServerConfig? ParseSingboxOutbound(System.Text.Json.JsonElement ob, string type)
+    /// <summary>
+    /// Строит полный sing-box конфиг с urltest, Clash API и domain-routing.
+    /// Вызывается при каждом обновлении подписки.
+    /// </summary>
+    private static string BuildAutoSingboxConfig(List<string> serverTags, List<string> serverRawJsons)
+    {
+        var customDomains = SettingsService.Load().ProxyDomains;
+
+        // ── Outbounds ────────────────────────────────────────────────────────
+        var outboundsArr = new JsonArray();
+        foreach (var json in serverRawJsons)
+        {
+            try { outboundsArr.Add(JsonNode.Parse(json)); }
+            catch { /* пропускаем невалидные */ }
+        }
+
+        // urltest group — sing-box сам выбирает лучший сервер
+        var tagsArr = new JsonArray();
+        foreach (var t in serverTags) tagsArr.Add(t);
+
+        outboundsArr.Add(new JsonObject
+        {
+            ["type"]      = "urltest",
+            ["tag"]       = "auto",
+            ["outbounds"] = tagsArr,
+            ["url"]       = "http://www.gstatic.com/generate_204",
+            ["interval"]  = "3m",
+            ["tolerance"] = 50
+        });
+        outboundsArr.Add(JsonNode.Parse(@"{""type"":""direct"",""tag"":""direct""}"));
+        outboundsArr.Add(JsonNode.Parse(@"{""type"":""block"",""tag"":""block""}"));
+
+        // ── Routing rules ────────────────────────────────────────────────────
+        var telegramDomains  = new[] { "telegram.org", "t.me", "telegram.me", "api.telegram.org", "cdn.telegram.org", "telegra.ph" };
+        var youtubeDomains   = new[] { "youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "ggpht.com", "youtube-nocookie.com" };
+        var whatsappDomains  = new[] { "whatsapp.com", "whatsapp.net" };
+        var allProxyDomains  = telegramDomains.Concat(youtubeDomains).Concat(whatsappDomains).Concat(customDomains).ToArray();
+
+        var rules = new JsonArray
+        {
+            new JsonObject { ["domain_suffix"] = ToJsonArray(allProxyDomains),
+                             ["outbound"]      = "auto" },
+            new JsonObject { ["ip_cidr"]   = ToJsonArray(new[] { "91.108.0.0/16", "91.105.192.0/23", "149.154.160.0/20", "185.76.151.0/24", "95.161.76.0/24" }),
+                             ["outbound"]  = "auto" },
+            new JsonObject { ["ip_cidr"]   = ToJsonArray(new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16", "fc00::/7" }),
+                             ["outbound"]  = "direct" }
+        };
+
+        // ── Итоговый конфиг ──────────────────────────────────────────────────
+        var config = new JsonObject
+        {
+            ["log"] = new JsonObject { ["level"] = "info", ["timestamp"] = true },
+            ["experimental"] = new JsonObject
+            {
+                ["clash_api"] = new JsonObject
+                {
+                    ["external_controller"] = $"127.0.0.1:{SingBoxService.ClashApiPort}"
+                }
+            },
+            ["inbounds"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["type"]        = "mixed",
+                    ["tag"]         = "mixed-in",
+                    ["listen"]      = "127.0.0.1",
+                    ["listen_port"] = SingBoxService.MixedPort
+                }
+            },
+            ["outbounds"] = outboundsArr,
+            ["route"]     = new JsonObject { ["rules"] = rules, ["final"] = "direct" }
+        };
+
+        return config.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private static JsonArray ToJsonArray(IEnumerable<string> items)
+    {
+        var arr = new JsonArray();
+        foreach (var item in items) arr.Add(item);
+        return arr;
+    }
+
+    // ── Individual outbound parsing ───────────────────────────────────────────
+
+    private static ServerConfig? ParseSingboxOutbound(JsonElement ob, string type)
     {
         var server = ob.TryGetProperty("server", out var s) ? s.GetString() ?? "" : "";
-        var port = ob.TryGetProperty("server_port", out var p) ? p.GetInt32() : 0;
-        var tag = ob.TryGetProperty("tag", out var t) ? t.GetString() ?? "" : "";
+        var port   = ob.TryGetProperty("server_port", out var p) ? p.GetInt32() : 0;
+        var tag    = ob.TryGetProperty("tag", out var t) ? t.GetString() ?? "" : "";
         if (string.IsNullOrEmpty(server) || port == 0) return null;
 
         var cfg = new ServerConfig { Name = tag, Host = server, Port = port };
@@ -94,8 +213,8 @@ public static class SubscriptionService
         {
             case "vless":
                 cfg.Protocol = Protocol.Vless;
-                cfg.Uuid = ob.TryGetProperty("uuid", out var u) ? u.GetString() ?? "" : "";
-                cfg.Flow = ob.TryGetProperty("flow", out var f) ? f.GetString() ?? "" : "";
+                cfg.Uuid     = ob.TryGetProperty("uuid", out var u) ? u.GetString() ?? "" : "";
+                cfg.Flow     = ob.TryGetProperty("flow", out var f) ? f.GetString() ?? "" : "";
                 ParseTls(ob, cfg);
                 break;
 
@@ -107,8 +226,8 @@ public static class SubscriptionService
 
             case "shadowsocks":
                 cfg.Protocol = Protocol.Shadowsocks;
-                cfg.Method = ob.TryGetProperty("method", out var m) ? m.GetString() ?? "" : "";
-                cfg.Password = ob.TryGetProperty("password", out var sp) ? sp.GetString() ?? "" : "";
+                cfg.Method   = ob.TryGetProperty("method",   out var m)  ? m.GetString()  ?? "" : "";
+                cfg.Password = ob.TryGetProperty("password", out var sp)  ? sp.GetString() ?? "" : "";
                 break;
 
             case "hysteria2":
@@ -119,7 +238,7 @@ public static class SubscriptionService
 
             case "vmess":
                 cfg.Protocol = Protocol.Vmess;
-                cfg.Uuid = ob.TryGetProperty("uuid", out var vu) ? vu.GetString() ?? "" : "";
+                cfg.Uuid     = ob.TryGetProperty("uuid", out var vu) ? vu.GetString() ?? "" : "";
                 break;
 
             default:
@@ -128,18 +247,18 @@ public static class SubscriptionService
         return cfg;
     }
 
-    private static void ParseTls(System.Text.Json.JsonElement ob, ServerConfig cfg)
+    private static void ParseTls(JsonElement ob, ServerConfig cfg)
     {
         if (!ob.TryGetProperty("tls", out var tls)) return;
-        cfg.Sni = tls.TryGetProperty("server_name", out var sn) ? sn.GetString() ?? "" : "";
-        cfg.SkipCertVerify = tls.TryGetProperty("insecure", out var ins) && ins.GetBoolean();
+        cfg.Sni           = tls.TryGetProperty("server_name", out var sn)  ? sn.GetString()  ?? "" : "";
+        cfg.SkipCertVerify = tls.TryGetProperty("insecure",   out var ins) && ins.GetBoolean();
         if (tls.TryGetProperty("utls", out var utls) && utls.TryGetProperty("fingerprint", out var fp))
             cfg.Fingerprint = fp.GetString() ?? "chrome";
         if (tls.TryGetProperty("reality", out var reality))
         {
-            cfg.Security = "reality";
-            cfg.RealityPublicKey = reality.TryGetProperty("public_key", out var pk) ? pk.GetString() ?? "" : "";
-            cfg.RealityShortId = reality.TryGetProperty("short_id", out var sid) ? sid.GetString() ?? "" : "";
+            cfg.Security        = "reality";
+            cfg.RealityPublicKey = reality.TryGetProperty("public_key", out var pk)  ? pk.GetString()  ?? "" : "";
+            cfg.RealityShortId  = reality.TryGetProperty("short_id",   out var sid) ? sid.GetString() ?? "" : "";
         }
         else if (tls.TryGetProperty("enabled", out var en) && en.GetBoolean())
         {
@@ -147,11 +266,13 @@ public static class SubscriptionService
         }
     }
 
+    // ── Base64 ───────────────────────────────────────────────────────────────
+
     private static string? TryBase64Decode(string s)
     {
         try
         {
-            var padded = s.PadRight((s.Length + 3) / 4 * 4, '=');
+            var padded  = s.PadRight((s.Length + 3) / 4 * 4, '=');
             var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(padded));
             return decoded.Contains("://") ? decoded : null;
         }

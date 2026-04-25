@@ -11,5 +11,8 @@ public partial class ServerViewModel : ObservableObject
     [ObservableProperty]
     private string _ping = "";
 
+    [ObservableProperty]
+    private bool _isActive = false;
+
     public ServerViewModel(ServerConfig config) => Config = config;
 }

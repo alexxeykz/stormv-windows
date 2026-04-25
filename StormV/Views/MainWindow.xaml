@@ -195,30 +195,47 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Протокол-бейдж -->
-                                        <Border Grid.Column="0"
-                                                Width="48" Height="32"
-                                                CornerRadius="8"
-                                                Margin="0,0,12,0">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#337B61FF" Offset="0"/>
-                                                    <GradientStop Color="#3360A5FA" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <TextBlock Text="{Binding Config.ProtocolLabel, Mode=OneWay}"
-                                                       FontSize="11"
-                                                       FontWeight="Bold"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center">
-                                                <TextBlock.Foreground>
+                                        <!-- Протокол-бейдж + зелёная точка активного сервера -->
+                                        <Grid Grid.Column="0" Width="48" Margin="0,0,12,0">
+                                            <Border Height="32"
+                                                    CornerRadius="8">
+                                                <Border.Background>
                                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                        <GradientStop Color="#FF7B61FF" Offset="0"/>
-                                                        <GradientStop Color="#FF60A5FA" Offset="1"/>
+                                                        <GradientStop Color="#337B61FF" Offset="0"/>
+                                                        <GradientStop Color="#3360A5FA" Offset="1"/>
                                                     </LinearGradientBrush>
-                                                </TextBlock.Foreground>
-                                            </TextBlock>
-                                        </Border>
+                                                </Border.Background>
+                                                <TextBlock Text="{Binding Config.ProtocolLabel, Mode=OneWay}"
+                                                           FontSize="11"
+                                                           FontWeight="Bold"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center">
+                                                    <TextBlock.Foreground>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#FF7B61FF" Offset="0"/>
+                                                            <GradientStop Color="#FF60A5FA" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </TextBlock.Foreground>
+                                                </TextBlock>
+                                            </Border>
+                                            <!-- Зелёная точка: активный сервер urltest -->
+                                            <Ellipse Width="8" Height="8"
+                                                     Fill="{StaticResource SV.SuccessBrush}"
+                                                     HorizontalAlignment="Right"
+                                                     VerticalAlignment="Top"
+                                                     Margin="0,-2,-2,0">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                        </Grid>
 
                                         <!-- Имя + хост -->
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -272,7 +289,7 @@
                            Foreground="{StaticResource SV.TextSecondaryBrush}"
                            Margin="0,0,0,4">
                     <Run Text="Сервер: "/>
-                    <Run Text="{Binding SelectedServerVm.Config.DisplayName, Mode=OneWay, FallbackValue='Не выбран'}"
+                    <Run Text="{Binding SelectedServerDisplay, Mode=OneWay, FallbackValue='Не выбран'}"
                          Foreground="{StaticResource SV.TextPrimaryBrush}"/>
                 </TextBlock>
 

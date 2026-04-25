@@ -11,6 +11,7 @@ public class SingBoxService
     private readonly string _configPath;
     private bool _intentionalStop;
     public const int MixedPort = 2080;
+    public const int ClashApiPort = 9090;
 
     public event Action<string>? LogReceived;
     public event Action<bool, string>? StatusChanged; // isRunning, error
@@ -41,7 +42,10 @@ public class SingBoxService
 
         try
         {
-            var config = BuildConfig(server);
+            // Авто-режим (urltest): используем готовый SingboxConfig из подписки
+            var config = server.IsAuto && !string.IsNullOrEmpty(server.SingboxConfig)
+                ? server.SingboxConfig
+                : BuildConfig(server);
             File.WriteAllText(_configPath, config);
             Logger.Instance.Debug("SingBox", $"Конфиг записан: {_configPath}");
 
