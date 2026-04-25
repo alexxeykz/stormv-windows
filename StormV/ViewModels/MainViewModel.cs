@@ -8,6 +8,7 @@ public partial class MainViewModel : ObservableObject
     private AppSettings _settings = ConfigService.LoadSettings();
     private CancellationTokenSource? _monitorCts;
     private ServerConfig? _lastWorkingServer;
+    private int _healthFailCount;
 
     [ObservableProperty]
     private ObservableCollection<ServerViewModel> _servers = new();
@@ -258,6 +259,7 @@ public partial class MainViewModel : ObservableObject
     {
         _monitorCts?.Cancel();
         _monitorCts = new CancellationTokenSource();
+        _healthFailCount = 0;
         _ = MonitorLoopAsync(_monitorCts.Token);
     }
 
@@ -269,20 +271,31 @@ public partial class MainViewModel : ObservableObject
 
     private async Task MonitorLoopAsync(CancellationToken ct)
     {
-        Logger.Instance.Info("Monitor", "Фоновый мониторинг запущен (каждые 60 сек)");
+        Logger.Instance.Info("Monitor", "Мониторинг запущен (каждые 30 сек, переключение после 2 неудач)");
         while (!ct.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
             if (ct.IsCancellationRequested || Status != ConnectionStatus.Connected) break;
 
-            var ok = await HealthChecker.IsWorkingAsync();
-            if (ok)
+            var result = await HealthChecker.CheckAsync();
+            if (result.IsOk)
             {
-                Logger.Instance.Debug("Monitor", "Соединение в порядке");
+                _healthFailCount = 0;
+                Logger.Instance.Debug("Monitor",
+                    $"OK — Telegram {result.TelegramMs}ms, YouTube CDN {result.YoutubeMs}ms");
                 continue;
             }
 
-            Logger.Instance.Warning("Monitor", "Соединение упало — запускаем AutoConnect");
+            _healthFailCount++;
+            Logger.Instance.Warning("Monitor",
+                $"[{_healthFailCount}/2] Недоступно: {result.FailedService} " +
+                $"(Telegram {result.TelegramMs}ms, YouTube {result.YoutubeMs}ms)");
+
+            // Ждём подтверждения от второй проверки — один сбой может быть временным.
+            if (_healthFailCount < 2) continue;
+
+            _healthFailCount = 0;
+            Logger.Instance.Warning("Monitor", "Два сбоя подряд — переключаемся на другой сервер");
             await Application.Current.Dispatcher.InvokeAsync(async () =>
             {
                 if (Status == ConnectionStatus.Connected)
@@ -290,7 +303,7 @@ public partial class MainViewModel : ObservableObject
             });
             break;
         }
-        Logger.Instance.Info("Monitor", "Фоновый мониторинг остановлен");
+        Logger.Instance.Info("Monitor", "Мониторинг остановлен");
     }
 
     // ── Connect ───────────────────────────────────────────────────────────────
