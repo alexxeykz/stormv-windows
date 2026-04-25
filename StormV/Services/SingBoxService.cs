@@ -206,6 +206,20 @@ public class SingBoxService
                     "ytimg.com", "ggpht.com", "youtube-nocookie.com"
                 },
                 outbound = "proxy"
+            },
+            new
+            {
+                domain_suffix = new[] { "whatsapp.com", "whatsapp.net" },
+                outbound = "proxy"
+            },
+            new
+            {
+                ip_cidr = new[] {
+                    "31.13.24.0/21", "31.13.64.0/18", "31.13.96.0/19",
+                    "157.240.0.0/17", "173.252.64.0/18",
+                    "69.63.176.0/20", "66.220.144.0/20"
+                },
+                outbound = "proxy"
             }
         };
 
