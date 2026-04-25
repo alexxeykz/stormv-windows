@@ -3,11 +3,33 @@ namespace StormV;
 public partial class App : Application
 {
     private System.Windows.Forms.NotifyIcon? _trayIcon;
+    private static Mutex? _mutex;
 
     public static bool IsExiting { get; private set; }
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        _mutex = new Mutex(true, "Global\\StormV_SingleInstance", out bool createdNew);
+        if (!createdNew)
+        {
+            var current = System.Diagnostics.Process.GetCurrentProcess();
+            var existing = System.Diagnostics.Process.GetProcessesByName(current.ProcessName)
+                .FirstOrDefault(p => p.Id != current.Id);
+            if (existing?.MainWindowHandle is IntPtr hwnd && hwnd != IntPtr.Zero)
+            {
+                ShowWindow(hwnd, 9); // SW_RESTORE
+                SetForegroundWindow(hwnd);
+            }
+            Shutdown();
+            return;
+        }
+
         // Сброс прокси на случай если прошлый сеанс завершился аварийно
         ProxyService.ClearProxy();
 
@@ -78,6 +100,8 @@ public partial class App : Application
         foreach (var p in System.Diagnostics.Process.GetProcessesByName("sing-box"))
             try { p.Kill(); } catch { }
         _trayIcon?.Dispose();
+        _mutex?.ReleaseMutex();
+        _mutex?.Dispose();
         base.OnExit(e);
     }
 
