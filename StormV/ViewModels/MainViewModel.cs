@@ -274,7 +274,8 @@ public partial class MainViewModel : ObservableObject
 
             Logger.Instance.Warning("Health", $"Не работает: {candidate.Server.DisplayName}");
             DisconnectInternal();
-            await Task.Delay(500);
+            // Пауза между попытками — быстрые reconnects триггерят fail2ban на серверах
+            await Task.Delay(3000);
         }
 
         ErrorMessage = "Ни один протокол не обеспечивает доступ к Telegram/YouTube";
