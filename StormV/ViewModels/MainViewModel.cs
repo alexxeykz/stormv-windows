@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(StatusText))]
     [NotifyPropertyChangedFor(nameof(ConnectButtonText))]
     [NotifyPropertyChangedFor(nameof(CanConnect))]
+    [NotifyPropertyChangedFor(nameof(CanAutoConnect))]
     private ConnectionStatus _status = ConnectionStatus.Disconnected;
 
     [ObservableProperty]

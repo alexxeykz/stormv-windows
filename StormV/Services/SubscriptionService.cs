@@ -188,7 +188,9 @@ public static class SubscriptionService
             ["route"]     = new JsonObject { ["rules"] = rules, ["final"] = "direct" }
         };
 
-        return config.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        // ToJsonString() без параметров — в .NET 8 new JsonSerializerOptions { WriteIndented }
+        // вызывает "TypeInfoResolver must be set before options are locked"
+        return config.ToJsonString();
     }
 
     private static JsonArray ToJsonArray(IEnumerable<string> items)
