@@ -33,3 +33,17 @@ public class InverseBoolConverter : System.Windows.Data.IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => value is bool b ? !b : value;
 }
+
+/// <summary>
+/// true (проверяем) → "Проверяю...", false → "Проверить обновления"
+/// </summary>
+public class BoolToCheckTextConverter : System.Windows.Data.IValueConverter
+{
+    public static readonly BoolToCheckTextConverter Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? "Проверяю..." : "Проверить обновления";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}

@@ -3,12 +3,33 @@ name: Build StormV Windows
 on:
   push:
     branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Generate version
+        id: version
+        shell: pwsh
+        run: |
+          $date = Get-Date -Format "yyyy.M.d"
+          echo "VERSION=$date" >> $env:GITHUB_OUTPUT
+          echo "TAG=v$date" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $date"
+
+      - name: Set app version in csproj
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.VERSION }}"
+          (Get-Content StormV/StormV.csproj) -replace '<Version>.*</Version>', "<Version>$v</Version>" |
+            Set-Content StormV/StormV.csproj
+          Write-Host "App version set to $v"
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
@@ -18,7 +39,8 @@ jobs:
       - name: Download sing-box for Windows
         shell: pwsh
         run: |
-          $version = (Invoke-RestMethod "https://api.github.com/repos/SagerNet/sing-box/releases/latest").tag_name -replace 'v',''
+          $rel     = Invoke-RestMethod "https://api.github.com/repos/SagerNet/sing-box/releases/latest"
+          $version = $rel.tag_name -replace 'v',''
           Write-Host "Downloading sing-box v$version"
           Invoke-WebRequest "https://github.com/SagerNet/sing-box/releases/download/v$version/sing-box-$version-windows-amd64.zip" -OutFile sing-box.zip
           Expand-Archive sing-box.zip -DestinationPath sing-box-tmp
@@ -38,8 +60,19 @@ jobs:
           $inno = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           & $inno "StormV-installer.iss"
 
-      - name: Upload installer
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: StormV-Setup
           path: Output/StormV-Setup.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:   ${{ steps.version.outputs.TAG }}
+          name:       "StormV ${{ steps.version.outputs.VERSION }}"
+          body:       "Автоматическая сборка от ${{ steps.version.outputs.VERSION }}"
+          files:      Output/StormV-Setup.exe
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
