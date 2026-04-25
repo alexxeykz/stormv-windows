@@ -6,7 +6,11 @@ namespace StormV.Services;
 /// </summary>
 public static class SubscriptionService
 {
-    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly HttpClient _http = new()
+    {
+        Timeout = TimeSpan.FromSeconds(15),
+        DefaultRequestHeaders = { { "User-Agent", "StormV/1.0 sing-box" } }
+    };
 
     public static async Task<(List<ServerConfig> servers, string error)> FetchAsync(string url)
     {
