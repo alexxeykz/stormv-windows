@@ -173,7 +173,6 @@
                         <Button Content="Обновить sing-box"
                                 Command="{Binding UpdateSingBoxCommand}"
                                 IsEnabled="{Binding CanUpdateSingBox}"
-                                Style="{StaticResource MaterialDesignRaisedButton}"
                                 Height="36" Margin="0,0,8,0">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
@@ -195,7 +194,6 @@
 
                         <Button Content="Скачать новую версию приложения"
                                 Command="{Binding DownloadAppCommand}"
-                                Style="{StaticResource MaterialDesignRaisedButton}"
                                 Height="36">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
