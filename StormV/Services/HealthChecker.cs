@@ -19,12 +19,13 @@ public record HealthResult(bool IsOk, string? FailedService, int TelegramMs, int
 /// </summary>
 public static class HealthChecker
 {
-    private const int LatencyMs = 4000;
+    private const int LatencyMs = 6000;
 
-    // Первое видео на YouTube (jNQXAC9IVRw = "Me at the zoo"), миниатюра 2-3 KB.
-    // Тестирует именно видео-CDN, а не просто главную страницу.
+    // api.telegram.org — реальный API-шлюз (не лендинг telegram.org).
+    // generate_204 — стандартный Google connectivity check: возвращает 204 без тела,
+    // используется в Android/Chrome. Быстрее и надёжнее CDN-thumbnail.
     private const string TelegramUrl  = "https://api.telegram.org";
-    private const string YoutubeUrl   = "https://i.ytimg.com/vi/jNQXAC9IVRw/default.jpg";
+    private const string YoutubeUrl   = "https://www.youtube.com/generate_204";
 
     public static async Task<HealthResult> CheckAsync(int proxyPort = SingBoxService.MixedPort)
     {
