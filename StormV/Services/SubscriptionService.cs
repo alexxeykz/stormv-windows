@@ -93,7 +93,7 @@ public static class SubscriptionService
         switch (type.ToLower())
         {
             case "vless":
-                cfg.Protocol = Protocol.VLESS;
+                cfg.Protocol = Protocol.Vless;
                 cfg.Uuid = ob.TryGetProperty("uuid", out var u) ? u.GetString() ?? "" : "";
                 cfg.Flow = ob.TryGetProperty("flow", out var f) ? f.GetString() ?? "" : "";
                 ParseTls(ob, cfg);
@@ -118,7 +118,7 @@ public static class SubscriptionService
                 break;
 
             case "vmess":
-                cfg.Protocol = Protocol.VMess;
+                cfg.Protocol = Protocol.Vmess;
                 cfg.Uuid = ob.TryGetProperty("uuid", out var vu) ? vu.GetString() ?? "" : "";
                 break;
 
