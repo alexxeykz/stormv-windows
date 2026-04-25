@@ -14,7 +14,7 @@ public static class SubscriptionService
 {
     private static readonly HttpClient _http = new()
     {
-        Timeout = TimeSpan.FromSeconds(15),
+        Timeout = TimeSpan.FromSeconds(30),
         DefaultRequestHeaders = { { "User-Agent", "StormV/1.0 sing-box" } }
     };
 
@@ -51,6 +51,11 @@ public static class SubscriptionService
 
             Logger.Instance.Info("Sub", $"Загружено серверов: {servers.Count}");
             return (servers, string.Empty);
+        }
+        catch (TaskCanceledException)
+        {
+            Logger.Instance.Error("Sub", "Ошибка загрузки подписки: таймаут");
+            return (new List<ServerConfig>(), "Превышено время ожидания (30 сек).\nПроверьте интернет-соединение или попробуйте позже.");
         }
         catch (Exception ex)
         {
