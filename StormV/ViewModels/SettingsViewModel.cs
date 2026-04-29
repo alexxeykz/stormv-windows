@@ -162,7 +162,8 @@ public partial class SettingsViewModel : ObservableObject
                 .ToList(),
             ProxyDomains = ProxyDomainsText
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Trim().ToLower())
+                .Select(l => l.Trim().ToLower()
+                    .Replace("https://", "").Replace("http://", "").TrimEnd('/'))
                 .Where(l => l.Length > 0)
                 .Distinct()
                 .ToList()
