@@ -175,37 +175,34 @@ public class SingBoxService
         {
             var doc = JsonDocument.Parse(singboxJson);
             var root = doc.RootElement.Clone();
+
+            // Берём имя proxy-outbound из route.final (в авто-режиме это "auto", в single — "proxy")
+            var proxyOutbound = "proxy";
+            if (root.TryGetProperty("route", out var route) &&
+                route.TryGetProperty("final", out var finalProp))
+                proxyOutbound = finalProp.GetString() ?? "proxy";
+
             using var ms = new System.IO.MemoryStream();
             using var writer = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true });
 
             writer.WriteStartObject();
             foreach (var prop in root.EnumerateObject())
             {
-                if (prop.Name != "route")
-                {
-                    prop.WriteTo(writer);
-                    continue;
-                }
+                if (prop.Name != "route") { prop.WriteTo(writer); continue; }
                 writer.WritePropertyName("route");
                 writer.WriteStartObject();
                 foreach (var routeProp in prop.Value.EnumerateObject())
                 {
-                    if (routeProp.Name != "rules")
-                    {
-                        routeProp.WriteTo(writer);
-                        continue;
-                    }
+                    if (routeProp.Name != "rules") { routeProp.WriteTo(writer); continue; }
                     writer.WritePropertyName("rules");
                     writer.WriteStartArray();
-                    // Пользовательские домены первым правилом
                     writer.WriteStartObject();
                     writer.WritePropertyName("domain_suffix");
                     writer.WriteStartArray();
                     foreach (var d in domains) writer.WriteStringValue(d);
                     writer.WriteEndArray();
-                    writer.WriteString("outbound", "proxy");
+                    writer.WriteString("outbound", proxyOutbound);
                     writer.WriteEndObject();
-                    // Остальные правила
                     foreach (var rule in routeProp.Value.EnumerateArray())
                         rule.WriteTo(writer);
                     writer.WriteEndArray();
