@@ -43,9 +43,18 @@ public class SingBoxService
         try
         {
             // Авто-режим (urltest): используем готовый SingboxConfig из подписки
-            var config = server.IsAuto && !string.IsNullOrEmpty(server.SingboxConfig)
-                ? server.SingboxConfig
-                : BuildConfig(server);
+            string config;
+            if (server.IsAuto && !string.IsNullOrEmpty(server.SingboxConfig))
+            {
+                var customDomains = SettingsService.Load().ProxyDomains;
+                config = customDomains.Count > 0
+                    ? InjectCustomDomains(server.SingboxConfig, customDomains)
+                    : server.SingboxConfig;
+            }
+            else
+            {
+                config = BuildConfig(server);
+            }
             File.WriteAllText(_configPath, config);
             Logger.Instance.Debug("SingBox", $"Конфиг записан: {_configPath}");
 
@@ -159,6 +168,59 @@ public class SingBoxService
     }
 
     // ─── Config builder ──────────────────────────────────────────────────────
+
+    private static string InjectCustomDomains(string singboxJson, List<string> domains)
+    {
+        try
+        {
+            var doc = JsonDocument.Parse(singboxJson);
+            var root = doc.RootElement.Clone();
+            using var ms = new System.IO.MemoryStream();
+            using var writer = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true });
+
+            writer.WriteStartObject();
+            foreach (var prop in root.EnumerateObject())
+            {
+                if (prop.Name != "route")
+                {
+                    prop.WriteTo(writer);
+                    continue;
+                }
+                writer.WritePropertyName("route");
+                writer.WriteStartObject();
+                foreach (var routeProp in prop.Value.EnumerateObject())
+                {
+                    if (routeProp.Name != "rules")
+                    {
+                        routeProp.WriteTo(writer);
+                        continue;
+                    }
+                    writer.WritePropertyName("rules");
+                    writer.WriteStartArray();
+                    // Пользовательские домены первым правилом
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("domain_suffix");
+                    writer.WriteStartArray();
+                    foreach (var d in domains) writer.WriteStringValue(d);
+                    writer.WriteEndArray();
+                    writer.WriteString("outbound", "proxy");
+                    writer.WriteEndObject();
+                    // Остальные правила
+                    foreach (var rule in routeProp.Value.EnumerateArray())
+                        rule.WriteTo(writer);
+                    writer.WriteEndArray();
+                }
+                writer.WriteEndObject();
+            }
+            writer.WriteEndObject();
+            writer.Flush();
+            return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+        }
+        catch
+        {
+            return singboxJson;
+        }
+    }
 
     private static string BuildConfig(ServerConfig s)
     {
