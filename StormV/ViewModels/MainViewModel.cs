@@ -126,10 +126,14 @@ public partial class MainViewModel : ObservableObject
     {
         if (!string.IsNullOrEmpty(subscriptionUrl))
         {
-            // Удаляем старые серверы этой подписки
-            var oldVms = Servers.Where(v => v.Config.SubscriptionUrl == subscriptionUrl).ToList();
+            var newNames = servers.Where(s => !s.IsAuto).Select(s => s.DisplayName).ToHashSet();
+
+            // Удаляем старые серверы этой подписки (по URL или по совпадению имени)
+            var oldVms = Servers
+                .Where(v => v.Config.SubscriptionUrl == subscriptionUrl || newNames.Contains(v.Config.DisplayName))
+                .ToList();
             foreach (var v in oldVms) Servers.Remove(v);
-            _allServers.RemoveAll(s => s.SubscriptionUrl == subscriptionUrl);
+            _allServers.RemoveAll(s => s.SubscriptionUrl == subscriptionUrl || newNames.Contains(s.DisplayName));
 
             foreach (var s in servers) s.SubscriptionUrl = subscriptionUrl;
 
