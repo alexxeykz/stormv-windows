@@ -10,6 +10,8 @@ public class AppSettings
     // Сохранённые URL подписок
     public List<string> SubscriptionUrls { get; set; } = new();
 
+    public long LastSubscriptionUpdateTicks { get; set; } = 0;
+
     // Пользовательские домены — через прокси
     public List<string> ProxyDomains { get; set; } = new();
 

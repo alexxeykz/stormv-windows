@@ -98,6 +98,34 @@ public partial class MainViewModel : ObservableObject
             });
 
         _ = PingAllServersAsync();
+        _ = AutoRefreshSubscriptionsIfNeededAsync();
+    }
+
+    private async Task AutoRefreshSubscriptionsIfNeededAsync()
+    {
+        if (_settings.SubscriptionUrls.Count == 0) return;
+        var last = new DateTime(_settings.LastSubscriptionUpdateTicks, DateTimeKind.Utc);
+        if ((DateTime.UtcNow - last).TotalHours < 12) return;
+        await Task.Delay(2000); // дать UI время загрузиться
+        await RefreshSubscriptionsWithSaveAsync();
+    }
+
+    private async Task RefreshSubscriptionsWithSaveAsync()
+    {
+        if (_settings.SubscriptionUrls.Count == 0) return;
+        foreach (var url in _settings.SubscriptionUrls.ToList())
+        {
+            var (servers, error) = await SubscriptionService.FetchAsync(url);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Logger.Instance.Error("UI", $"Авто-обновление: {error}");
+                continue;
+            }
+            AddSubscriptionServers(servers, url);
+        }
+        _settings.LastSubscriptionUpdateTicks = DateTime.UtcNow.Ticks;
+        SettingsService.Save(_settings);
+        Logger.Instance.Info("UI", "Авто-обновление подписок выполнено");
     }
 
     [RelayCommand]
@@ -182,6 +210,8 @@ public partial class MainViewModel : ObservableObject
             AddSubscriptionServers(servers, url);
         }
         IsRefreshing = false;
+        _settings.LastSubscriptionUpdateTicks = DateTime.UtcNow.Ticks;
+        SettingsService.Save(_settings);
         Logger.Instance.Info("UI", "Подписки обновлены");
     }
 
