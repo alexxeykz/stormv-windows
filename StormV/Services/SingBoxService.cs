@@ -176,11 +176,21 @@ public class SingBoxService
             var doc = JsonDocument.Parse(singboxJson);
             var root = doc.RootElement.Clone();
 
-            // Берём имя proxy-outbound из route.final (в авто-режиме это "auto", в single — "proxy")
-            var proxyOutbound = "proxy";
-            if (root.TryGetProperty("route", out var route) &&
-                route.TryGetProperty("final", out var finalProp))
-                proxyOutbound = finalProp.GetString() ?? "proxy";
+            // Ищем urltest/selector outbound — это и есть прокси-группа в авто-режиме
+            var proxyOutbound = "auto";
+            if (root.TryGetProperty("outbounds", out var outboundsProp))
+            {
+                foreach (var ob in outboundsProp.EnumerateArray())
+                {
+                    if (ob.TryGetProperty("type", out var t) &&
+                        (t.GetString() == "urltest" || t.GetString() == "selector") &&
+                        ob.TryGetProperty("tag", out var tagProp))
+                    {
+                        proxyOutbound = tagProp.GetString() ?? "auto";
+                        break;
+                    }
+                }
+            }
 
             using var ms = new System.IO.MemoryStream();
             using var writer = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true });
