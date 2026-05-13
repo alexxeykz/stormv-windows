@@ -27,7 +27,7 @@ public static class UpdateService
     // ── Версия приложения ────────────────────────────────────────────────────
 
     public static string GetCurrentAppVersion()
-        => Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
+        => Assembly.GetExecutingAssembly().GetName().Version?.ToString(4) ?? "0.0.0";
 
     public static async Task<ReleaseInfo?> CheckAppUpdateAsync()
     {

@@ -24,15 +24,18 @@ jobs:
         shell: pwsh
         run: |
           $date = Get-Date -Format "yyyy.M.d"
-          echo "VERSION=$date" >> $env:GITHUB_OUTPUT
-          echo "TAG=v$date" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $date"
+          $run  = "${{ github.run_number }}"
+          echo "VERSION=$date.$run" >> $env:GITHUB_OUTPUT
+          echo "TAG=v$date.$run" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $date.$run"
 
       - name: Set app version in csproj
         shell: pwsh
         run: |
           $v = "${{ steps.version.outputs.VERSION }}"
-          (Get-Content StormV/StormV.csproj) -replace '<Version>.*</Version>', "<Version>$v</Version>" |
+          (Get-Content StormV/StormV.csproj) `
+            -replace '<Version>.*</Version>', "<Version>$v</Version>" `
+            -replace '<AssemblyVersion>.*</AssemblyVersion>', "<AssemblyVersion>$v</AssemblyVersion>" |
             Set-Content StormV/StormV.csproj
           Write-Host "App version set to $v"
 
